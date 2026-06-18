@@ -10,6 +10,9 @@ INSERT INTO id_records (id_number, first_name, last_name, date_of_birth, gender,
 ('1199820090123456', 'Patrick', 'Hakizimana', '1982-08-03', 'Male', 'Kigali'),
 ('1199910001234567', 'Chantal', 'Murekatete', '1991-06-14', 'Female', 'Nyanza');
 
+-- Passwords:
+-- Admin: ServTech@Admin2026!
+-- Agent: ServTech@Agent2026!
 INSERT INTO users (name, email, password, role) VALUES
-('Admin User', 'admin@servtech.rw', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin'),
-('Agent One', 'agent@servtech.rw', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'agent');
+('Admin User', 'admin@servtech.rw', '$2a$10$5jd0iNPejQqEa94U0T/gSu7tMQHJU3pKePLQj.cJvHgcgUrWX46Fe', 'admin'),
+('Agent One',  'agent@servtech.rw', '$2a$10$gXmNqlP2FZuRKARoYHKRheI/HaYgNVG9o30pufJZxt1m5RsgPZWMq', 'agent');

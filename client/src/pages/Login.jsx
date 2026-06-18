@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import Logo from '../components/Logo';
 
 export default function Login() {
   const { login } = useAuth();
@@ -27,8 +28,11 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-md">
 
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-gray-800">ServTech Rwanda</h1>
+        <div className="flex flex-col items-center mb-8">
+          <Logo size={56} showText={false} />
+          <h1 className="text-2xl font-semibold text-gray-800 mt-4">
+            <span className="text-primary-600">Serv</span>Tech Rwanda
+          </h1>
           <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
         </div>
 
@@ -71,7 +75,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          ServTech Rwanda - Client Registration System
+          <span className="text-primary-600 font-medium">Serv</span>Tech Rwanda - Client Registration System
         </p>
       </div>
     </div>

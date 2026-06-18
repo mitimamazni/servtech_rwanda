@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { SkeletonCard } from '../components/Skeleton';
+import Logo from '../components/Logo';
 import {
   Users, UserCheck, UserX, CalendarDays,
   Plus, Search, ChevronLeft, ChevronRight,
@@ -98,9 +99,10 @@ export default function Dashboard() {
 
       <nav className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-800">ServTech Rwanda</h1>
-            <p className="text-xs text-gray-400">Client Registration System</p>
+          <div className="flex items-center gap-3">
+            <Logo size={36} showText={true} textClass="text-lg" />
+            <span className="text-gray-300 hidden sm:block">|</span>
+            <p className="text-xs text-gray-400 hidden sm:block">Client Registration System</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500 hidden sm:block">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, AlertCircle, Loader, User } from 'lucide-react';
+import Logo from '../components/Logo';
 
 const DISTRICTS = [
   'Bugesera','Burera','Gakenke','Gasabo','Gatsibo','Gicumbi','Gisagara',
@@ -91,8 +92,10 @@ export default function AgentRegister() {
           <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
             <ArrowLeft size={20} />
           </button>
+          <Logo size={32} showText={true} textClass="text-base" />
+          <span className="text-gray-300">|</span>
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">Agent Registration</h1>
+            <h1 className="text-lg font-semibold text-gray-800">Agent Registration</h1>
             <p className="text-gray-500 text-sm">Step {step + 1} of {STEPS.length} - {STEPS[step]}</p>
           </div>
         </div>

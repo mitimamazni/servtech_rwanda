@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { extractIdData } from '../utils/ocr';
 import { Upload, CheckCircle, AlertCircle, Loader, ArrowLeft, ArrowRight, User } from 'lucide-react';
+import Logo from '../components/Logo';
 
 const STEPS = ['Scan ID', 'Verify Details', 'Contact Info', 'Confirm'];
 
@@ -131,8 +132,10 @@ export default function Register() {
           <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
             <ArrowLeft size={20} />
           </button>
+          <Logo size={32} showText={true} textClass="text-base" />
+          <span className="text-gray-300">|</span>
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">New Registration</h1>
+            <h1 className="text-lg font-semibold text-gray-800">New Registration</h1>
             <p className="text-gray-500 text-sm">Step {step + 1} of {STEPS.length} - {STEPS[step]}</p>
           </div>
         </div>

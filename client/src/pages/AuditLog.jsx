@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Loader, ShieldCheck, LogIn, UserPlus, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import Logo from '../components/Logo';
 
 const ACTION_STYLES = {
   LOGIN:           { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   icon: <LogIn size={12} /> },
@@ -82,8 +83,10 @@ export default function AuditLog() {
             <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-gray-600">
               <ArrowLeft size={20} />
             </button>
+            <Logo size={32} showText={true} textClass="text-base" />
+            <span className="text-gray-300">|</span>
             <div>
-              <h1 className="text-lg font-semibold text-gray-800">Audit Log</h1>
+              <h1 className="text-base font-semibold text-gray-800">Audit Log</h1>
               <p className="text-xs text-gray-400">Full system activity record</p>
             </div>
           </div>
