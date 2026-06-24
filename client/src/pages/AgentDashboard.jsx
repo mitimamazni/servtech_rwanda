@@ -61,11 +61,7 @@ export default function AgentDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar>
-        <button onClick={() => navigate('/agent/agent-register')}
-          className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
-          <Users size={15} /> Agent Register
-        </button>
-        <button onClick={() => navigate('/agent/register')}
+        <button onClick={() => navigate('/client/register')}
           className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={15} /> New Client
         </button>
