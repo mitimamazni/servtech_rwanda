@@ -1,6 +1,6 @@
 {
   "name": "servtech-server",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "ServTech Rwanda API",
   "main": "index.js",
   "scripts": {
@@ -18,7 +18,8 @@
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
-    "pg": "^8.11.0"
+    "pg": "^8.11.0",
+    "resend": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
