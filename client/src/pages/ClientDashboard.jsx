@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle } from 'lucide-react';

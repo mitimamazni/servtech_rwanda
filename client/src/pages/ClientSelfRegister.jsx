@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import { extractIdData } from '../utils/ocr';
 import Logo from '../components/Logo';
@@ -21,6 +21,7 @@ export default function ClientSelfRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [verificationStatus, setVerificationStatus] = useState(null);
+  const [verifyingId, setVerifyingId] = useState(false);
   const [tooManyAttempts, setTooManyAttempts] = useState(false);
 
   const [form, setForm] = useState({
@@ -43,12 +44,11 @@ export default function ClientSelfRegister() {
       toast('Scanning your ID...', { icon: '🔍' });
       const extracted = await extractIdData(file, setOcrProgress);
 
-      // Age check from ID
       if (extracted.id_number) {
         const birthYear = parseInt(extracted.id_number.substring(1, 5));
         const age = new Date().getFullYear() - birthYear;
         if (age < 18) {
-          toast.error(`Registration denied. You must be 18 or older.`);
+          toast.error('Registration denied. You must be 18 or older.');
           const newAttempts = attempts + 1;
           setAttempts(newAttempts);
           if (newAttempts >= MAX_ATTEMPTS) setTooManyAttempts(true);
@@ -80,18 +80,45 @@ export default function ClientSelfRegister() {
     }
   };
 
-  const handleIdCheck = () => {
-    if (!form.id_number || form.id_number.length < 16) return;
-    const birthYear = parseInt(form.id_number.substring(1, 5));
-    const age = new Date().getFullYear() - birthYear;
-    if (age < 18) {
-      setVerificationStatus('underage');
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      if (newAttempts >= MAX_ATTEMPTS) setTooManyAttempts(true);
-      return;
+  const handleVerifyId = async () => {
+    if (!form.id_number) return;
+    setVerifyingId(true);
+    setVerificationStatus(null);
+    try {
+      const birthYear = parseInt(form.id_number.substring(1, 5));
+      const age = new Date().getFullYear() - birthYear;
+      if (age < 18) {
+        setVerificationStatus('underage');
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        if (newAttempts >= MAX_ATTEMPTS) setTooManyAttempts(true);
+        return;
+      }
+      const res = await axios.post('/verify-id', { id_number: form.id_number });
+      if (res.data.verified) {
+        setVerificationStatus('registry_found');
+        const d = res.data.data;
+        setForm(prev => ({
+          ...prev,
+          first_name:    prev.first_name    || d.first_name,
+          last_name:     prev.last_name     || d.last_name,
+          date_of_birth: prev.date_of_birth || d.date_of_birth?.split('T')[0],
+          gender:        prev.gender        || d.gender,
+          district:      prev.district      || d.district,
+        }));
+        toast.success('Details auto-filled from registry');
+      }
+    } catch (err) {
+      if (err.response?.data?.underAge) {
+        setVerificationStatus('underage');
+        toast.error(err.response.data.message);
+      } else {
+        setVerificationStatus('not_found');
+        toast('ID not found - please fill in your details below', { icon: '⚠️' });
+      }
+    } finally {
+      setVerifyingId(false);
     }
-    setVerificationStatus('age_ok');
   };
 
   const handleSubmit = async () => {
@@ -116,7 +143,6 @@ export default function ClientSelfRegister() {
     }
   };
 
-  // Too many failed attempts
   if (tooManyAttempts) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -156,7 +182,6 @@ export default function ClientSelfRegister() {
           </div>
         </div>
 
-        {/* Attempt counter warning */}
         {attempts > 0 && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-700 flex items-center gap-2">
             <AlertCircle size={15} />
@@ -213,24 +238,50 @@ export default function ClientSelfRegister() {
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="font-medium text-gray-800">Your Details</h2>
-              <p className="text-sm text-gray-500">Review and correct any details below.</p>
+              <p className="text-sm text-gray-500">
+                Enter your ID number and click <strong>Verify</strong> to auto-fill your details from the national registry.
+              </p>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ID Number <span className="text-red-400">*</span></label>
-                <input value={form.id_number} onChange={e => { update('id_number', e.target.value); setVerificationStatus(null); }}
-                  onBlur={handleIdCheck} maxLength={16}
-                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="16-digit ID number" />
+                <div className="flex gap-2">
+                  <input
+                    value={form.id_number}
+                    onChange={e => { update('id_number', e.target.value); setVerificationStatus(null); }}
+                    maxLength={16}
+                    className="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="16-digit ID number"
+                  />
+                  <button
+                    onClick={handleVerifyId}
+                    disabled={verifyingId || !form.id_number}
+                    className="px-4 py-2.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-60 flex items-center gap-2 transition-colors"
+                  >
+                    {verifyingId ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                    Verify
+                  </button>
+                </div>
+
                 {verificationStatus === 'underage' && (
-                  <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                  <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1">
                     <AlertCircle size={12} /> Registration denied. You must be 18 or older.
+                  </p>
+                )}
+                {verificationStatus === 'registry_found' && (
+                  <p className="text-green-600 text-xs mt-1.5 flex items-center gap-1">
+                    <CheckCircle size={12} /> Found in registry - details auto-filled below
+                  </p>
+                )}
+                {verificationStatus === 'not_found' && (
+                  <p className="text-amber-600 text-xs mt-1.5 flex items-center gap-1">
+                    <AlertCircle size={12} /> ID not found - please fill in your details manually
                   </p>
                 )}
               </div>
 
               {[
-                { label: 'First Name', field: 'first_name', type: 'text' },
-                { label: 'Last Name',  field: 'last_name',  type: 'text' },
+                { label: 'First Name',    field: 'first_name',    type: 'text' },
+                { label: 'Last Name',     field: 'last_name',     type: 'text' },
                 { label: 'Date of Birth', field: 'date_of_birth', type: 'date' },
               ].map(({ label, field, type }) => (
                 <div key={field}>
@@ -294,13 +345,14 @@ export default function ClientSelfRegister() {
                     <p className="font-medium text-gray-800">{form.first_name} {form.last_name}</p>
                     <p className="text-xs text-gray-500 font-mono">{form.id_number}</p>
                   </div>
+                  {verificationStatus === 'registry_found' && <CheckCircle size={18} className="text-green-500 ml-auto" />}
                 </div>
                 {[
                   ['Date of Birth', form.date_of_birth],
-                  ['Igitsina', form.gender],
-                  ['Email', form.email],
-                  ['Phone', form.phone],
-                  ['District', form.district],
+                  ['Igitsina',      form.gender],
+                  ['Email',         form.email],
+                  ['Phone',         form.phone],
+                  ['District',      form.district],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-gray-500">{label}</span>
@@ -323,7 +375,9 @@ export default function ClientSelfRegister() {
             </button>
 
             {step < STEPS.length - 1 ? (
-              <button onClick={() => setStep(s => s + 1)} disabled={ocrLoading || verificationStatus === 'underage'}
+              <button
+                onClick={() => setStep(s => s + 1)}
+                disabled={ocrLoading || verificationStatus === 'underage'}
                 className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-1 disabled:opacity-60">
                 Next <ArrowRight size={14} />
               </button>

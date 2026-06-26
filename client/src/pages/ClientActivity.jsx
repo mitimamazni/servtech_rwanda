@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { ArrowLeft, BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, Loader } from 'lucide-react';

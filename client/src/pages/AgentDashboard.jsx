@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import { SkeletonCard } from '../components/Skeleton';
@@ -61,7 +61,7 @@ export default function AgentDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar>
-        <button onClick={() => navigate('/client/register')}
+        <button onClick={() => navigate('/agent/register')}
           className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={15} /> New Client
         </button>
