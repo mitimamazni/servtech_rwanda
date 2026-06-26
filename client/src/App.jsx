@@ -44,20 +44,19 @@ function AppRoutes() {
       <Route path="/register" element={<ClientSelfRegister />} />
       <Route path="/"         element={user ? dashboardRedirect() : <Navigate to="/login" />} />
 
-      {/* Admin routes */}
-      <Route path="/admin/dashboard" element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
-      <Route path="/admin/agents"    element={<PrivateRoute roles={['admin']}><AgentsPage /></PrivateRoute>} />
-      <Route path="/admin/audit"     element={<PrivateRoute roles={['admin']}><AuditLog /></PrivateRoute>} />
+      {/* Admin only routes */}
+      <Route path="/admin/dashboard"              element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
+      <Route path="/admin/agents"                 element={<PrivateRoute roles={['admin']}><AgentsPage /></PrivateRoute>} />
+      <Route path="/admin/audit"                  element={<PrivateRoute roles={['admin']}><AuditLog /></PrivateRoute>} />
       <Route path="/admin/client/:clientId/activity" element={<PrivateRoute roles={['admin']}><ClientActivity /></PrivateRoute>} />
-      <Route path="/admin/register"  element={<PrivateRoute roles={['admin']}><Register /></PrivateRoute>} />
-      <Route path="/admin/agent-register" element={<PrivateRoute roles={['admin']}><AgentRegister /></PrivateRoute>} />
+      <Route path="/admin/register"               element={<PrivateRoute roles={['admin']}><Register /></PrivateRoute>} />
+      <Route path="/admin/agent-register"         element={<PrivateRoute roles={['admin']}><AgentRegister /></PrivateRoute>} />
 
-      {/* Agent routes */}
-      <Route path="/agent/dashboard"       element={<PrivateRoute roles={['agent']}><AgentDashboard /></PrivateRoute>} />
-      <Route path="/agent/register"        element={<PrivateRoute roles={['agent']}><Register /></PrivateRoute>} />
-      <Route path="/agent/agent-register"  element={<PrivateRoute roles={['agent']}><AgentRegister /></PrivateRoute>} />
+      {/* Agent only routes — no agent-register route for agents */}
+      <Route path="/agent/dashboard" element={<PrivateRoute roles={['agent']}><AgentDashboard /></PrivateRoute>} />
+      <Route path="/agent/register"  element={<PrivateRoute roles={['agent']}><Register /></PrivateRoute>} />
 
-      {/* Client routes */}
+      {/* Client only routes */}
       <Route path="/client/dashboard" element={<PrivateRoute roles={['client']}><ClientDashboard /></PrivateRoute>} />
 
       <Route path="*" element={<Navigate to="/login" />} />
