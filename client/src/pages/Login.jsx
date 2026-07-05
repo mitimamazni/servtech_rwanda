@@ -58,7 +58,6 @@ export default function Login() {
           </button>
         </form>
 
-<<<<<<< HEAD
         <div className="mt-6 text-center space-y-1.5">
           <p className="text-sm text-gray-500">New client?{' '}
             <Link to="/register" className="text-primary-600 hover:underline font-medium">Register here</Link>
@@ -66,12 +65,6 @@ export default function Login() {
           <p className="text-sm text-gray-500">Want to become an agent?{' '}
             <Link to="/agent-signup" className="text-primary-600 hover:underline font-medium">Apply here</Link>
           </p>
-=======
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">New client?{' '}
-            <Link to="/register" className="text-primary-600 hover:underline font-medium">Register here</Link>
-          </p>
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">

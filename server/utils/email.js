@@ -41,7 +41,6 @@ exports.sendAgentWelcomeEmail = async ({ name, email, password }) => {
   }
 };
 
-<<<<<<< HEAD
 exports.sendAgentApprovedEmail = async ({ name, email }) => {
   try {
     await resend.emails.send({
@@ -76,8 +75,6 @@ exports.sendAgentApprovedEmail = async ({ name, email }) => {
   }
 };
 
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 exports.sendClientWelcomeEmail = async ({ name, email, password }) => {
   try {
     await resend.emails.send({

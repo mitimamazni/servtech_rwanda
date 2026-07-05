@@ -6,14 +6,11 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL,
   role VARCHAR(20) DEFAULT 'agent' CHECK (role IN ('admin', 'agent', 'client')),
   phone VARCHAR(20),
-<<<<<<< HEAD
   -- account status:
   --   'active'    - can log in normally
   --   'pending'   - agent self-registered, awaiting admin approval (cannot log in yet)
   --   'suspended' - deactivated by an admin (cannot log in)
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended')),
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
   created_at TIMESTAMP DEFAULT NOW()
 );
 

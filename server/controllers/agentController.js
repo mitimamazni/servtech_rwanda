@@ -1,6 +1,5 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
-<<<<<<< HEAD
 const { sendAgentWelcomeEmail, sendAgentApprovedEmail } = require('../utils/email');
 
 // GET all agents (includes pending applications and suspended accounts)
@@ -8,27 +7,14 @@ exports.getAgents = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT u.id, u.name, u.email, u.phone, u.status, u.created_at,
-=======
-const { sendAgentWelcomeEmail } = require('../utils/email');
-
-// GET all agents
-exports.getAgents = async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT u.id, u.name, u.email, u.phone, u.created_at,
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
              COUNT(c.id) AS clients_registered
       FROM users u
       LEFT JOIN clients c ON c.registered_by = u.id
       WHERE u.role = 'agent'
       GROUP BY u.id
-<<<<<<< HEAD
       ORDER BY
         CASE u.status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END,
         u.created_at DESC
-=======
-      ORDER BY u.created_at DESC
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     `);
     res.json(result.rows);
   } catch (err) {
@@ -37,7 +23,6 @@ exports.getAgents = async (req, res) => {
   }
 };
 
-<<<<<<< HEAD
 // GET a single agent + the clients they've registered (agent detail / "agent view")
 exports.getAgentDetail = async (req, res) => {
   const { id } = req.params;
@@ -160,8 +145,6 @@ exports.setAgentStatus = async (req, res) => {
   }
 };
 
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 // CREATE agent
 exports.createAgent = async (req, res) => {
   const { name, email, phone } = req.body;
@@ -176,12 +159,8 @@ exports.createAgent = async (req, res) => {
     const hashed = await bcrypt.hash(rawPassword, 10);
 
     const result = await pool.query(
-<<<<<<< HEAD
       `INSERT INTO users (name, email, password, role, phone, status) VALUES ($1, $2, $3, $4, $5, 'active')
        RETURNING id, name, email, phone, status, created_at`,
-=======
-      'INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, phone, created_at',
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       [name, email, hashed, 'agent', phone || null]
     );
 

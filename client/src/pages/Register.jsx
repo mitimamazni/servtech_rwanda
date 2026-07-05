@@ -23,11 +23,8 @@ export default function Register() {
   const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
-<<<<<<< HEAD
   const [elderly, setElderly] = useState(false);
   const [elderlyConfirmed, setElderlyConfirmed] = useState(false);
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
   const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'' });
   const update = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
@@ -81,10 +78,7 @@ export default function Register() {
         toast.error(err.response.data.message);
       } else {
         setVerificationStatus('not_found');
-<<<<<<< HEAD
         setElderly(!!err.response?.data?.elderly);
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         toast('ID not found - registration will be marked as pending', { icon: '⚠️' });
       }
     } finally { setVerifying(false); }
@@ -93,7 +87,6 @@ export default function Register() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-<<<<<<< HEAD
       await axios.post('/register', { ...form, elderly_confirmed: elderlyConfirmed });
       toast.success('Client registered successfully');
       navigate(backPath);
@@ -104,13 +97,6 @@ export default function Register() {
       } else {
         toast.error(err.response?.data?.message || 'Registration failed');
       }
-=======
-      await axios.post('/register', form);
-      toast.success('Client registered successfully');
-      navigate(backPath);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     } finally { setSubmitting(false); }
   };
 
@@ -267,7 +253,6 @@ export default function Register() {
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
                 You are registering this client as a <strong>{user?.role}</strong>. This action will be logged in the audit trail.
               </div>
-<<<<<<< HEAD
               {elderly && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
                   <label className="flex items-start gap-2 cursor-pointer">
@@ -276,8 +261,6 @@ export default function Register() {
                   </label>
                 </div>
               )}
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
             </div>
           )}
 
@@ -292,11 +275,7 @@ export default function Register() {
                 Continue <ArrowRight size={14} />
               </button>
             ) : (
-<<<<<<< HEAD
               <button onClick={handleSubmit} disabled={submitting || (elderly && !elderlyConfirmed)}
-=======
-              <button onClick={handleSubmit} disabled={submitting}
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                 className="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-60">
                 {submitting ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />} Register Client
               </button>

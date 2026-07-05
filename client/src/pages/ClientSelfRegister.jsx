@@ -94,11 +94,7 @@ export default function ClientSelfRegister() {
         if (newAttempts >= MAX_ATTEMPTS) setTooManyAttempts(true);
         return;
       }
-<<<<<<< HEAD
       const res = await axios.post('/verify-id', { id_number: form.id_number, self: true });
-=======
-      const res = await axios.post('/verify-id', { id_number: form.id_number });
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       if (res.data.verified) {
         setVerificationStatus('registry_found');
         const d = res.data.data;
@@ -116,12 +112,9 @@ export default function ClientSelfRegister() {
       if (err.response?.data?.underAge) {
         setVerificationStatus('underage');
         toast.error(err.response.data.message);
-<<<<<<< HEAD
       } else if (err.response?.data?.elderlyAssistRequired) {
         setVerificationStatus('elderly');
         toast.error(err.response.data.message, { duration: 6000 });
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       } else {
         setVerificationStatus('not_found');
         toast('ID not found - please fill in your details below', { icon: '⚠️' });
@@ -138,13 +131,10 @@ export default function ClientSelfRegister() {
       toast.success('Registration successful! Check your email for login details.');
       navigate('/login');
     } catch (err) {
-<<<<<<< HEAD
       if (err.response?.data?.elderlyAssistRequired) {
         toast.error(err.response.data.message, { duration: 6000 });
         return;
       }
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
       if (newAttempts >= MAX_ATTEMPTS) {
@@ -281,16 +271,12 @@ export default function ClientSelfRegister() {
 
                 {verificationStatus === 'underage' && (
                   <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1">
-<<<<<<< HEAD
                     <AlertCircle size={12} /> You appear to be under 18. You can still submit, but registration will be rejected.
                   </p>
                 )}
                 {verificationStatus === 'elderly' && (
                   <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1">
                     <AlertCircle size={12} /> For clients over 80, please visit a ServTech agent for assisted registration.
-=======
-                    <AlertCircle size={12} /> Registration denied. You must be 18 or older.
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                   </p>
                 )}
                 {verificationStatus === 'registry_found' && (
@@ -403,11 +389,7 @@ export default function ClientSelfRegister() {
             {step < STEPS.length - 1 ? (
               <button
                 onClick={() => setStep(s => s + 1)}
-<<<<<<< HEAD
                 disabled={ocrLoading}
-=======
-                disabled={ocrLoading || verificationStatus === 'underage'}
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                 className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-1 disabled:opacity-60">
                 Next <ArrowRight size={14} />
               </button>
