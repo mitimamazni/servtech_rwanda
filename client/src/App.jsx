@@ -9,15 +9,10 @@ import ClientDashboard from './pages/ClientDashboard';
 import Register from './pages/Register';
 import AgentRegister from './pages/AgentRegister';
 import ClientSelfRegister from './pages/ClientSelfRegister';
-<<<<<<< HEAD
 import AgentSelfRegister from './pages/AgentSelfRegister';
 import AuditLog from './pages/AuditLog';
 import AgentsPage from './pages/AgentsPage';
 import AgentDetail from './pages/AgentDetail';
-=======
-import AuditLog from './pages/AuditLog';
-import AgentsPage from './pages/AgentsPage';
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 import ClientActivity from './pages/ClientActivity';
 
 const PrivateRoute = ({ children, roles }) => {
@@ -48,24 +43,15 @@ function AppRoutes() {
 
   return (
     <Routes>
-<<<<<<< HEAD
       <Route path="/login"        element={user ? dashboardRedirect() : <Login />} />
       <Route path="/register"     element={<ClientSelfRegister />} />
       <Route path="/agent-signup" element={<AgentSelfRegister />} />
       <Route path="/"             element={user ? dashboardRedirect() : <Landing />} />
-=======
-      <Route path="/login"    element={user ? dashboardRedirect() : <Login />} />
-      <Route path="/register" element={<ClientSelfRegister />} />
-      <Route path="/"         element={user ? dashboardRedirect() : <Navigate to="/login" />} />
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
       {/* Admin only routes */}
       <Route path="/admin/dashboard"              element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
       <Route path="/admin/agents"                 element={<PrivateRoute roles={['admin']}><AgentsPage /></PrivateRoute>} />
-<<<<<<< HEAD
       <Route path="/admin/agent/:id"               element={<PrivateRoute roles={['admin']}><AgentDetail /></PrivateRoute>} />
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       <Route path="/admin/audit"                  element={<PrivateRoute roles={['admin']}><AuditLog /></PrivateRoute>} />
       <Route path="/admin/client/:clientId/activity" element={<PrivateRoute roles={['admin']}><ClientActivity /></PrivateRoute>} />
       <Route path="/admin/register"               element={<PrivateRoute roles={['admin']}><Register /></PrivateRoute>} />
@@ -74,10 +60,7 @@ function AppRoutes() {
       {/* Agent only routes — no agent-register route for agents */}
       <Route path="/agent/dashboard" element={<PrivateRoute roles={['agent']}><AgentDashboard /></PrivateRoute>} />
       <Route path="/agent/register"  element={<PrivateRoute roles={['agent']}><Register /></PrivateRoute>} />
-<<<<<<< HEAD
       <Route path="/agent/client/:clientId/activity" element={<PrivateRoute roles={['agent']}><ClientActivity /></PrivateRoute>} />
-=======
->>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
       {/* Client only routes */}
       <Route path="/client/dashboard" element={<PrivateRoute roles={['client']}><ClientDashboard /></PrivateRoute>} />
