@@ -1,8 +1,17 @@
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+if (!process.env.RESEND_API_KEY) {
+  console.warn('[email] RESEND_API_KEY is not set — emails will be skipped.');
+}
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 exports.sendAgentWelcomeEmail = async ({ name, email, password }) => {
   try {
+    if (!resend) {
+      console.warn('[email] Skipped sending — RESEND_API_KEY not configured.');
+      return { success: false, skipped: true };
+    }
     await resend.emails.send({
       from: 'ServTech Rwanda <noreply@servtech.rw>',
       to: email,
@@ -43,6 +52,10 @@ exports.sendAgentWelcomeEmail = async ({ name, email, password }) => {
 
 exports.sendAgentApprovedEmail = async ({ name, email }) => {
   try {
+    if (!resend) {
+      console.warn('[email] Skipped sending — RESEND_API_KEY not configured.');
+      return { success: false, skipped: true };
+    }
     await resend.emails.send({
       from: 'ServTech Rwanda <noreply@servtech.rw>',
       to: email,
@@ -77,6 +90,10 @@ exports.sendAgentApprovedEmail = async ({ name, email }) => {
 
 exports.sendClientWelcomeEmail = async ({ name, email, password }) => {
   try {
+    if (!resend) {
+      console.warn('[email] Skipped sending — RESEND_API_KEY not configured.');
+      return { success: false, skipped: true };
+    }
     await resend.emails.send({
       from: 'ServTech Rwanda <noreply@servtech.rw>',
       to: email,
