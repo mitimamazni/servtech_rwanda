@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
@@ -17,6 +18,13 @@ const StatusPill = ({ status }) => {
     </span>
   );
 };
+=======
+import { useNavigate } from 'react-router-dom';
+import axios from '../utils/axios';
+import toast from 'react-hot-toast';
+import Navbar from '../components/Navbar';
+import { ArrowLeft, Plus, Trash2, Loader, Users, Mail, Phone, Calendar } from 'lucide-react';
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
 export default function AgentsPage() {
   const navigate = useNavigate();
@@ -26,7 +34,10 @@ export default function AgentsPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+<<<<<<< HEAD
   const [busyId, setBusyId] = useState(null);
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
   const fetchAgents = () => {
     setLoading(true);
@@ -68,6 +79,7 @@ export default function AgentsPage() {
     }
   };
 
+<<<<<<< HEAD
   const handleStatus = async (id, status) => {
     setBusyId(id);
     try {
@@ -83,6 +95,8 @@ export default function AgentsPage() {
 
   const pendingCount = agents.filter(a => a.status === 'pending').length;
 
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar>
@@ -99,10 +113,14 @@ export default function AgentsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-800">Agent Management</h2>
+<<<<<<< HEAD
           <p className="text-sm text-gray-500 mt-1">
             Create and manage system agents. New agents receive login credentials by email.
             {pendingCount > 0 && <span className="text-amber-600 font-medium"> {pendingCount} application{pendingCount > 1 ? 's' : ''} awaiting review.</span>}
           </p>
+=======
+          <p className="text-sm text-gray-500 mt-1">Create and manage system agents. New agents receive login credentials by email.</p>
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         </div>
 
         {/* Create agent form */}
@@ -166,23 +184,35 @@ export default function AgentsPage() {
           ) : (
             <div className="divide-y divide-gray-50">
               {agents.map(agent => (
+<<<<<<< HEAD
                 <div key={agent.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 flex-wrap gap-3">
+=======
+                <div key={agent.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50">
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-primary-700 font-semibold text-sm">{agent.name.charAt(0)}</span>
                     </div>
                     <div>
+<<<<<<< HEAD
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-gray-800 text-sm">{agent.name}</p>
                         <StatusPill status={agent.status} />
                       </div>
+=======
+                      <p className="font-medium text-gray-800 text-sm">{agent.name}</p>
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                       <div className="flex items-center gap-3 mt-0.5">
                         <span className="text-xs text-gray-500 flex items-center gap-1"><Mail size={11} /> {agent.email}</span>
                         {agent.phone && <span className="text-xs text-gray-500 flex items-center gap-1"><Phone size={11} /> {agent.phone}</span>}
                       </div>
                     </div>
                   </div>
+<<<<<<< HEAD
                   <div className="flex items-center gap-4 text-right">
+=======
+                  <div className="flex items-center gap-6 text-right">
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                     <div>
                       <p className="text-sm font-semibold text-gray-800">{agent.clients_registered}</p>
                       <p className="text-xs text-gray-400">clients registered</p>
@@ -193,6 +223,7 @@ export default function AgentsPage() {
                         {new Date(agent.created_at).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
+<<<<<<< HEAD
 
                     <Link to={`/admin/agent/${agent.id}`}
                       className="text-gray-400 hover:text-primary-600 transition-colors p-1" title="View">
@@ -225,6 +256,11 @@ export default function AgentsPage() {
                     <button onClick={() => handleDelete(agent.id, agent.name)}
                       disabled={deletingId === agent.id}
                       className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-40 p-1" title="Delete permanently">
+=======
+                    <button onClick={() => handleDelete(agent.id, agent.name)}
+                      disabled={deletingId === agent.id}
+                      className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-40 p-1">
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                       {deletingId === agent.id ? <Loader size={16} className="animate-spin" /> : <Trash2 size={16} />}
                     </button>
                   </div>

@@ -18,8 +18,11 @@ export default function AgentRegister() {
   const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
+<<<<<<< HEAD
   const [elderly, setElderly] = useState(false);
   const [elderlyConfirmed, setElderlyConfirmed] = useState(false);
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
   const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'' });
   const update = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
@@ -41,7 +44,10 @@ export default function AgentRegister() {
           district:      d.district      || prev.district,
         }));
         toast.success('ID found - details auto-filled');
+<<<<<<< HEAD
         if (res.data.elderly) toast('Client is over 80 - identity confirmation will be required before submitting', { icon: '⚠️' });
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         setStep(1);
       }
     } catch (err) {
@@ -50,7 +56,10 @@ export default function AgentRegister() {
         toast.error(err.response.data.message);
       } else {
         setVerificationStatus('not_found');
+<<<<<<< HEAD
         setElderly(!!err.response?.data?.elderly);
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         toast('ID not found - fill in details manually', { icon: '⚠️' });
         setStep(1);
       }
@@ -67,12 +76,16 @@ export default function AgentRegister() {
       toast.success('Client registered successfully');
       navigate(backPath);
     } catch (err) {
+<<<<<<< HEAD
       if (err.response?.data?.elderlyConfirmRequired) {
         setElderly(true);
         toast.error(err.response.data.message);
       } else {
         toast.error(err.response?.data?.message || 'Registration failed');
       }
+=======
+      toast.error(err.response?.data?.message || 'Registration failed');
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     } finally { setSubmitting(false); }
   };
 
@@ -242,7 +255,11 @@ export default function AgentRegister() {
                 Continue
               </button>
             ) : (
+<<<<<<< HEAD
               <button onClick={handleSubmit} disabled={submitting || (elderly && !elderlyConfirmed)}
+=======
+              <button onClick={handleSubmit} disabled={submitting}
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                 className="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-60">
                 {submitting ? <><Loader size={14} className="animate-spin" /> Saving...</> : <><CheckCircle size={14} /> Register Client</>}
               </button>

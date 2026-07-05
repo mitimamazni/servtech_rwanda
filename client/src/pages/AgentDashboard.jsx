@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { useNavigate, Link } from 'react-router-dom';
+=======
+import { useNavigate } from 'react-router-dom';
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
@@ -102,7 +106,10 @@ export default function AgentDashboard() {
                 <option value="">All</option>
                 <option value="verified">Verified</option>
                 <option value="pending">Pending</option>
+<<<<<<< HEAD
                 <option value="rejected">Rejected</option>
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
               </select>
             </div>
           </div>
@@ -124,7 +131,11 @@ export default function AgentDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 text-left">
+<<<<<<< HEAD
                     {['Client', 'ID Number', 'Igitsina', 'District', 'Phone', 'Date', 'Status', ''].map(h => (
+=======
+                    {['Client', 'ID Number', 'Igitsina', 'District', 'Phone', 'Date', 'Status'].map(h => (
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                       <th key={h} className="px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -141,9 +152,12 @@ export default function AgentDashboard() {
                         {new Date(c.created_at).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+<<<<<<< HEAD
                       <td className="px-4 py-3 text-right">
                         <Link to={`/agent/client/${c.id}/activity`} className="text-primary-600 hover:underline text-xs font-medium">View</Link>
                       </td>
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
                     </tr>
                   ))}
                 </tbody>

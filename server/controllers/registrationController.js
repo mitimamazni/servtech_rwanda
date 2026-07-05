@@ -1,14 +1,18 @@
 const pool = require('../config/db');
 
+<<<<<<< HEAD
 const MIN_AGE = 18;
 const ELDERLY_AGE = 80;
 
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 // Age check from Rwanda ID format: positions 1-4 = birth year
 const getAgeFromId = (id_number) => {
   const birthYear = parseInt(id_number.substring(1, 5));
   return new Date().getFullYear() - birthYear;
 };
 
+<<<<<<< HEAD
 // Cross-check that a manually-entered date of birth agrees with the birth year
 // encoded in the ID number. Runs regardless of whether the ID is present in the
 // national registry, since a registry match isn't required to catch a typo/mismatch.
@@ -41,6 +45,18 @@ exports.verifyId = async (req, res) => {
         verified: false,
         elderlyAssistRequired: true,
         message: `For clients over ${ELDERLY_AGE}, please visit a ServTech agent for assisted registration so your identity can be confirmed in person.`,
+=======
+exports.verifyId = async (req, res) => {
+  const { id_number } = req.body;
+  try {
+    // Age gate
+    const age = getAgeFromId(id_number);
+    if (age < 18) {
+      return res.status(400).json({
+        verified: false,
+        underAge: true,
+        message: `Registration denied. This person is approximately ${age} years old. Minimum age is 18.`,
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       });
     }
 
@@ -84,6 +100,7 @@ exports.registerClient = async (req, res) => {
   const { id_number, first_name, last_name, date_of_birth, gender, phone, district, elderly_confirmed } = req.body;
 
   try {
+<<<<<<< HEAD
     // Age gate — agents may not register minors under any circumstances.
     const age = getAgeFromId(id_number);
     if (age < MIN_AGE) {
@@ -93,10 +110,18 @@ exports.registerClient = async (req, res) => {
       );
       return res.status(400).json({
         message: `Registration denied. This person is approximately ${age} years old. Minimum age is ${MIN_AGE}.`,
+=======
+    // Age gate
+    const age = getAgeFromId(id_number);
+    if (age < 18) {
+      return res.status(400).json({
+        message: `Registration denied. This person is approximately ${age} years old. Minimum age is 18.`,
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         underAge: true,
       });
     }
 
+<<<<<<< HEAD
     // Elderly clients (80+) require an explicit in-person identity confirmation
     // from the agent before the registration can be submitted.
     if (age > ELDERLY_AGE && !elderly_confirmed) {
@@ -120,6 +145,10 @@ exports.registerClient = async (req, res) => {
       "SELECT id, status FROM clients WHERE id_number = $1 AND status != 'rejected'",
       [id_number]
     );
+=======
+    // Duplicate check
+    const existing = await pool.query('SELECT id, status FROM clients WHERE id_number = $1', [id_number]);
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     if (existing.rows.length > 0) {
       return res.status(400).json({
         message: 'This ID is already registered on ServTech Rwanda.',
@@ -127,16 +156,25 @@ exports.registerClient = async (req, res) => {
         existingStatus: existing.rows[0].status,
       });
     }
+<<<<<<< HEAD
     await pool.query("DELETE FROM clients WHERE id_number = $1 AND status = 'rejected'", [id_number]);
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
     const idCheck = await pool.query('SELECT id FROM id_records WHERE id_number = $1 AND valid = true', [id_number]);
     const status = idCheck.rows.length > 0 ? 'verified' : 'pending';
     const elderlyAssisted = age > ELDERLY_AGE;
 
     const result = await pool.query(
+<<<<<<< HEAD
       `INSERT INTO clients (id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderlyAssisted, req.user.id]
+=======
+      `INSERT INTO clients (id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [id_number, first_name, last_name, date_of_birth, gender, phone, district, status, req.user.id]
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     );
 
     await pool.query(
@@ -220,7 +258,10 @@ exports.getStats = async (req, res) => {
     const total    = await pool.query(`SELECT COUNT(*) FROM clients${where}`, params);
     const verified = await pool.query(`SELECT COUNT(*) FROM clients${where}${where ? ' AND' : ' WHERE'} status = 'verified'`, params);
     const pending  = await pool.query(`SELECT COUNT(*) FROM clients${where}${where ? ' AND' : ' WHERE'} status = 'pending'`, params);
+<<<<<<< HEAD
     const rejected = await pool.query(`SELECT COUNT(*) FROM clients${where}${where ? ' AND' : ' WHERE'} status = 'rejected'`, params);
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     const today    = await pool.query(`SELECT COUNT(*) FROM clients${where}${where ? ' AND' : ' WHERE'} created_at::date = CURRENT_DATE`, params);
 
     res.json({

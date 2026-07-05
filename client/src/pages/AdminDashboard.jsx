@@ -81,16 +81,26 @@ export default function AdminDashboard() {
           <p className="text-sm text-gray-500 mt-1">Full system overview</p>
         </div>
 
+<<<<<<< HEAD
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+=======
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
           {stats ? (
             <>
               <StatCard label="Total Clients"    value={stats.total}    icon={Users}        color="bg-primary-600" />
               <StatCard label="Verified"         value={stats.verified} icon={UserCheck}    color="bg-green-500" />
               <StatCard label="Pending Review"   value={stats.pending}  icon={UserX}        color="bg-amber-500" />
+<<<<<<< HEAD
               <StatCard label="Rejected"         value={stats.rejected} icon={XCircle}      color="bg-red-400" />
               <StatCard label="Registered Today" value={stats.today}    icon={CalendarDays} color="bg-indigo-500" />
             </>
           ) : [1,2,3,4,5].map(i => <SkeletonCard key={i} />)}
+=======
+              <StatCard label="Registered Today" value={stats.today}    icon={CalendarDays} color="bg-indigo-500" />
+            </>
+          ) : [1,2,3,4].map(i => <SkeletonCard key={i} />)}
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">

@@ -3,11 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
+<<<<<<< HEAD
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, BadgeCheck, Clock, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Loader,
   Pencil, Ban, PlayCircle, Check, X,
 } from 'lucide-react';
+=======
+import { ArrowLeft, BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, Loader } from 'lucide-react';
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
 const OutcomeBadge = ({ outcome }) => {
   const map = {
@@ -22,6 +26,7 @@ const OutcomeBadge = ({ outcome }) => {
   );
 };
 
+<<<<<<< HEAD
 const StatusBadge = ({ status }) => {
   if (status === 'verified') return <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-medium"><BadgeCheck size={13} /> Verified</span>;
   if (status === 'rejected') return <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-full text-xs font-medium"><XCircle size={13} /> Rejected</span>;
@@ -118,6 +123,20 @@ export default function ClientActivity() {
       setBusy(false);
     }
   };
+=======
+export default function ClientActivity() {
+  const { clientId } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`/client/${clientId}/activity`)
+      .then(r => setData(r.data))
+      .catch(() => toast.error('Failed to load client activity'))
+      .finally(() => setLoading(false));
+  }, [clientId]);
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50">
@@ -134,7 +153,11 @@ export default function ClientActivity() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar>
+<<<<<<< HEAD
         <button onClick={() => navigate(backPath)}
+=======
+        <button onClick={() => navigate('/admin/dashboard')}
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
           className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
           <ArrowLeft size={15} /> Back
         </button>
@@ -152,6 +175,7 @@ export default function ClientActivity() {
               <div>
                 <h2 className="text-lg font-semibold text-gray-800">{client?.first_name} {client?.last_name}</h2>
                 <p className="text-xs text-gray-500 font-mono">{client?.id_number}</p>
+<<<<<<< HEAD
                 {client?.email && <p className="text-xs text-gray-400">{client.email}</p>}
                 {!client?.is_active && (
                   <span className="inline-block mt-1 text-xs text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">Deactivated</span>
@@ -281,6 +305,27 @@ export default function ClientActivity() {
               )}
             </div>
           )}
+=======
+                <p className="text-xs text-gray-400">{client?.email}</p>
+              </div>
+            </div>
+            {client?.status === 'verified'
+              ? <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-medium"><BadgeCheck size={13} /> Verified</span>
+              : <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1 rounded-full text-xs font-medium"><Clock size={13} /> Pending</span>
+            }
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-gray-100 text-sm">
+            <div><p className="text-xs text-gray-400">Phone</p><p className="font-medium text-gray-700">{client?.phone || '—'}</p></div>
+            <div><p className="text-xs text-gray-400">Igitsina</p><p className="font-medium text-gray-700">{client?.gender || '—'}</p></div>
+            <div><p className="text-xs text-gray-400">District</p><p className="font-medium text-gray-700">{client?.district || '—'}</p></div>
+            <div>
+              <p className="text-xs text-gray-400">Registered By</p>
+              <p className="font-medium text-gray-700">{client?.agent_name || 'Self-registered'}</p>
+              {client?.agent_phone && <p className="text-xs text-gray-400">{client.agent_phone}</p>}
+            </div>
+          </div>
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
         </div>
 
         {/* Betting stats */}

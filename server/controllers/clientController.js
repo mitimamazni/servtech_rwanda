@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { sendClientWelcomeEmail } = require('../utils/email');
 
+<<<<<<< HEAD
 const MIN_AGE = 18;
 const ELDERLY_AGE = 80;
 
@@ -13,11 +14,14 @@ const yearMismatch = (id_number, date_of_birth) => {
   return idYear !== dobYear;
 };
 
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 // Client self-registration
 exports.selfRegister = async (req, res) => {
   const { id_number, first_name, last_name, date_of_birth, gender, phone, district, email } = req.body;
 
   try {
+<<<<<<< HEAD
     // Duplicate client check — a previously *rejected* attempt (e.g. the person was
     // under 18 at the time) should not permanently block a legitimate later attempt,
     // so only an active (pending/verified) record counts as a real duplicate.
@@ -32,10 +36,13 @@ exports.selfRegister = async (req, res) => {
       });
     }
 
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     // Age check from ID number format: positions 1-4 = birth year
     const birthYear = parseInt(id_number.substring(1, 5));
     const currentYear = new Date().getFullYear();
     const age = currentYear - birthYear;
+<<<<<<< HEAD
 
     // Under 18 or over 80 via self-service: record the attempt as a rejected
     // client (no login account is created) so it's visible to admins under the
@@ -80,6 +87,21 @@ exports.selfRegister = async (req, res) => {
       return res.status(400).json({
         message: 'The date of birth does not match the birth year encoded in the ID number. Please review both fields.',
         yearMismatch: true,
+=======
+    if (age < 18) {
+      return res.status(400).json({
+        message: 'Registration denied. You must be 18 or older to register.',
+        underAge: true,
+      });
+    }
+
+    // Duplicate client check
+    const existingClient = await pool.query('SELECT id FROM clients WHERE id_number = $1', [id_number]);
+    if (existingClient.rows.length > 0) {
+      return res.status(400).json({
+        message: 'This ID is already registered on ServTech Rwanda.',
+        duplicate: true,
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
       });
     }
 
@@ -89,24 +111,36 @@ exports.selfRegister = async (req, res) => {
       return res.status(400).json({ message: 'This email address is already in use.' });
     }
 
+<<<<<<< HEAD
     // A previously-rejected record for this ID number is superseded now that the
     // person is eligible — clear it out before inserting the real record.
     await pool.query("DELETE FROM clients WHERE id_number = $1 AND status = 'rejected'", [id_number]);
 
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     // Verify against registry
     const idCheck = await pool.query('SELECT id FROM id_records WHERE id_number = $1 AND valid = true', [id_number]);
     const status = idCheck.rows.length > 0 ? 'verified' : 'pending';
 
+<<<<<<< HEAD
     // Generate password (looped to guarantee uniqueness against existing hashes is not
     // meaningful for bcrypt, so instead we simply guarantee the raw password itself is
     // freshly randomised per registration)
+=======
+    // Generate password
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     const rawPassword = `ST@${first_name.charAt(0).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.floor(10 + Math.random() * 90)}!`;
     const hashed = await bcrypt.hash(rawPassword, 10);
 
     // Create user account
     const userResult = await pool.query(
+<<<<<<< HEAD
       'INSERT INTO users (name, email, password, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
       [`${first_name} ${last_name}`, email, hashed, 'client', phone, 'active']
+=======
+      'INSERT INTO users (name, email, password, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [`${first_name} ${last_name}`, email, hashed, 'client', phone]
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     );
     const userId = userResult.rows[0].id;
 
@@ -179,12 +213,20 @@ exports.getClientDashboard = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 // Admin: any client. Agent: only a client they personally registered.
+=======
+// Admin: get any client's betting activity
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
 exports.getClientActivity = async (req, res) => {
   const { clientId } = req.params;
   try {
     const clientResult = await pool.query(
+<<<<<<< HEAD
       `SELECT c.*, u.email, u2.name as agent_name, u2.phone as agent_phone, u2.id as agent_id
+=======
+      `SELECT c.*, u.email, u2.name as agent_name, u2.phone as agent_phone
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
        FROM clients c
        LEFT JOIN users u ON c.user_id = u.id
        LEFT JOIN users u2 ON c.registered_by = u2.id
@@ -193,11 +235,14 @@ exports.getClientActivity = async (req, res) => {
     );
     if (clientResult.rows.length === 0) return res.status(404).json({ message: 'Client not found' });
 
+<<<<<<< HEAD
     const client = clientResult.rows[0];
     if (req.user.role === 'agent' && client.agent_id !== req.user.id) {
       return res.status(403).json({ message: 'You can only view clients you registered' });
     }
 
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
     const bettingResult = await pool.query(
       'SELECT * FROM betting_activity WHERE client_id = $1 ORDER BY placed_at DESC',
       [clientId]
@@ -212,11 +257,16 @@ exports.getClientActivity = async (req, res) => {
       [clientId]
     );
 
+<<<<<<< HEAD
     res.json({ client, bets: bettingResult.rows, stats: statsResult.rows[0] });
+=======
+    res.json({ client: clientResult.rows[0], bets: bettingResult.rows, stats: statsResult.rows[0] });
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
 };
+<<<<<<< HEAD
 
 // Shared helper: fetch a client and confirm the requesting user is allowed to act on it.
 // Admin can act on any client; an agent only on clients they personally registered.
@@ -344,3 +394,5 @@ exports.setClientActive = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+=======
+>>>>>>> 9db6d6819db7fd9c6c82e857825fdc88fc7fd189
