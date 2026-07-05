@@ -4,6 +4,32 @@
 
 ---
 
+## ⚠️ July 2026 update — read before deploying
+
+This pass fixed the outstanding bugs and added agent self-registration, client/agent
+CRUD (edit, validate, reject, deactivate/reactivate), a landing page, and stricter
+age/identity checks. **If you already have a deployed Supabase database, run the
+migration before deploying the new code:**
+
+```bash
+psql "$DATABASE_URL" -f server/config/migration_v2.sql
+```
+
+This adds the new `users.status` and `clients.rejection_reason` / `is_active` /
+`elderly_assisted` columns, fixes the previously-broken demo client password hash,
+and adds a few under-18 / over-80 ID records for testing. If you're setting up a
+fresh database instead, `schema.sql` + `seed.sql` already include everything.
+
+Summary of what changed:
+- **Demo client login** — the seeded password hash for `jean@ / marie@ / patrick@example.rw` didn't actually match `ClientPass2026!`. Fixed.
+- **Agent self-registration** — new public `/agent-signup` page. Applications are created with `status = 'pending'` and can't log in until an admin approves them from Agent Management or the new agent detail page (`/admin/agent/:id`).
+- **Agent & client CRUD** — edit, deactivate/reactivate for both, plus validate/reject (with an optional reason) for pending clients, from the client/agent detail pages.
+- **Client & agent "view" pages** — agents can now open a client they registered (`/agent/client/:id/activity`); this route previously returned 403 for agents. Admins get a matching agent detail page.
+- **Age & identity checks** — under-18 is blocked outright; over-80 self-service registrations are redirected to an agent and recorded with `status = 'rejected'` so they're visible under the Rejected filter; over-80 agent-assisted registrations require an explicit in-person identity-confirmation checkbox. A year-consistency check now compares the ID number's encoded birth year against the entered date of birth even when the ID isn't in the registry.
+- **Landing page** at `/` for logged-out visitors.
+
+---
+
 ## Overview
 
 ServTech Rwanda is a web-based automated client registration system built for Rwanda's service and betting industry. It replaces paper-based onboarding with a digital workflow that scans a client's national ID using OCR, verifies their identity against a registry, and saves their record - reducing registration time from 15-20 minutes to an estimated 5-8 minutes.

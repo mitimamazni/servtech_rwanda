@@ -23,6 +23,18 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    if (user.status === 'pending') {
+      return res.status(403).json({
+        message: 'Your agent application is still awaiting admin approval. You will be able to log in once it is approved.',
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({
+        message: 'This account has been deactivated. Please contact a ServTech administrator.',
+      });
+    }
+
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
       process.env.JWT_SECRET,
@@ -52,7 +64,7 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, role FROM users WHERE id = $1',
+      'SELECT id, name, email, role, status FROM users WHERE id = $1',
       [req.user.id]
     );
     res.json(result.rows[0]);
