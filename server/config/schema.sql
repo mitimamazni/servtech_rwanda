@@ -70,3 +70,26 @@ CREATE TABLE audit_logs (
   details TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ── Row Level Security ────────────────────────────────────────────────────
+-- This project is hosted on Supabase, which auto-exposes every public-schema
+-- table over a REST API to the anon/authenticated keys unless RLS blocks it.
+-- The backend (server/config/db.js) connects directly as the `postgres`
+-- superuser via DATABASE_URL, so it bypasses RLS entirely and is unaffected —
+-- this only closes off Supabase's auto-generated API, which this app doesn't use.
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE id_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE betting_activity ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY service_role_only ON users
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY service_role_only ON id_records
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY service_role_only ON clients
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY service_role_only ON betting_activity
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY service_role_only ON audit_logs
+  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
