@@ -6,8 +6,17 @@ import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, BadgeCheck, Clock, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Loader,
-  Pencil, Ban, PlayCircle, Check, X,
+  Pencil, Ban, PlayCircle, Check, X, Image as ImageIcon, ShieldAlert,
 } from 'lucide-react';
+
+const REJECTION_REASONS = [
+  'ID document unclear or unreadable',
+  'Selfie does not match ID photo',
+  'Selfie missing or invalid',
+  'Details do not match national registry',
+  'Suspected duplicate or fraudulent application',
+  'Other (specify below)',
+];
 
 const OutcomeBadge = ({ outcome }) => {
   const map = {
@@ -37,8 +46,12 @@ export default function ClientActivity() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [rejectReason, setRejectReason] = useState('');
+  const [rejectReasonOther, setRejectReasonOther] = useState('');
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [documents, setDocuments] = useState(null);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
 
   const backPath = user?.role === 'admin' ? '/admin/dashboard' : '/agent/dashboard';
 
@@ -91,13 +104,25 @@ export default function ClientActivity() {
     }
   };
 
+  const loadDocuments = () => {
+    if (documents || documentsLoading) { setShowDocuments(s => !s); return; }
+    setDocumentsLoading(true);
+    setShowDocuments(true);
+    axios.get(`/clients/${clientId}/documents`)
+      .then(r => setDocuments(r.data))
+      .catch((err) => toast.error(err.response?.data?.message || 'Failed to load KYC documents'))
+      .finally(() => setDocumentsLoading(false));
+  };
+
   const handleReject = async () => {
+    const reason = rejectReason === 'Other (specify below)' ? rejectReasonOther : rejectReason;
     setBusy(true);
     try {
-      await axios.patch(`/clients/${clientId}/reject`, { reason: rejectReason || undefined });
+      await axios.patch(`/clients/${clientId}/reject`, { reason: reason || undefined });
       toast.success('Client rejected');
       setShowRejectBox(false);
       setRejectReason('');
+      setRejectReasonOther('');
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Action failed');
@@ -169,6 +194,48 @@ export default function ClientActivity() {
           {client?.status === 'rejected' && client?.rejection_reason && (
             <div className="mt-4 bg-red-50 border border-red-100 text-red-700 text-sm rounded-lg px-4 py-2.5">
               <span className="font-medium">Rejection reason:</span> {client.rejection_reason}
+            </div>
+          )}
+
+          {(client?.has_selfie || client?.has_id_document) && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button onClick={loadDocuments}
+                className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium">
+                <ImageIcon size={15} /> {showDocuments ? 'Hide' : 'View'} KYC documents
+              </button>
+
+              {showDocuments && (
+                <div className="mt-3 grid grid-cols-2 gap-4 max-w-md">
+                  {documentsLoading ? (
+                    <div className="col-span-2 flex items-center gap-2 text-sm text-gray-400 py-6 justify-center">
+                      <Loader size={16} className="animate-spin" /> Loading documents...
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1.5">Selfie</p>
+                        {documents?.selfie_data ? (
+                          <img src={documents.selfie_data} alt="Client selfie" className="w-full aspect-square object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="w-full aspect-square rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-xs text-gray-300">
+                            Not provided
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400 mb-1.5">ID document</p>
+                        {documents?.id_document_data ? (
+                          <img src={documents.id_document_data} alt="ID document" className="w-full aspect-square object-cover rounded-lg border border-gray-200" />
+                        ) : (
+                          <div className="w-full aspect-square rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-xs text-gray-300">
+                            Not provided
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -254,10 +321,17 @@ export default function ClientActivity() {
                       <XCircle size={14} /> Reject
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                        placeholder="Reason (optional)"
-                        className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-48" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <select value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                        className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+                        <option value="">Select a reason...</option>
+                        {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      {rejectReason === 'Other (specify below)' && (
+                        <input value={rejectReasonOther} onChange={e => setRejectReasonOther(e.target.value)}
+                          placeholder="Specify reason"
+                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-48" />
+                      )}
                       <button onClick={handleReject} disabled={busy}
                         className="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">Confirm</button>
                       <button onClick={() => setShowRejectBox(false)} className="text-sm text-gray-500 px-2">Cancel</button>

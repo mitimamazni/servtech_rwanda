@@ -7,7 +7,7 @@ import { SkeletonCard } from '../components/Skeleton';
 import {
   Users, UserCheck, UserX, CalendarDays, Plus, Search,
   ChevronLeft, ChevronRight, BadgeCheck, Clock, XCircle,
-  ShieldCheck, UserCog, BarChart2, Loader
+  ShieldCheck, UserCog, BarChart2, Loader, ClipboardList, Camera
 } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -67,8 +67,11 @@ export default function AdminDashboard() {
         <button onClick={() => navigate('/admin/audit')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <ShieldCheck size={15} /> Audit Log
         </button>
-        <button onClick={() => navigate('/admin/agent-register')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
-          <Users size={15} /> Agent Register
+        <button onClick={() => navigate('/admin/manual-register')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <ClipboardList size={15} /> Manual Entry
+        </button>
+        <button onClick={() => navigate('/admin/analytics')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <BarChart2 size={15} /> Analytics
         </button>
         <button onClick={() => navigate('/admin/register')} className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={15} /> New Client
@@ -152,7 +155,12 @@ export default function AdminDashboard() {
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {new Date(c.created_at).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={c.status} />
+                          {c.has_selfie && <Camera size={13} className="text-gray-300" title="Selfie on file" />}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <button onClick={() => navigate(`/admin/client/${c.id}/activity`)}
                           className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium">

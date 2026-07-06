@@ -11,6 +11,9 @@ CREATE TABLE users (
   --   'pending'   - agent self-registered, awaiting admin approval (cannot log in yet)
   --   'suspended' - deactivated by an admin (cannot log in)
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended')),
+  -- Two-factor authentication (TOTP), optional/opt-in for admin and agent accounts
+  totp_secret TEXT,
+  totp_enabled BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -41,6 +44,10 @@ CREATE TABLE clients (
   rejection_reason VARCHAR(255),
   is_active BOOLEAN DEFAULT true,
   elderly_assisted BOOLEAN DEFAULT false,
+  -- KYC documents, stored as base64 data URLs (swap for object-storage URLs at scale)
+  selfie_data TEXT,
+  id_document_data TEXT,
+  kyc_submitted_at TIMESTAMP DEFAULT NOW(),
   registered_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW()
 );

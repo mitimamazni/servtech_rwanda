@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Logo from './Logo';
-import { LogOut } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 
 export default function Navbar({ children }) {
   const { user, logout } = useAuth();
@@ -27,6 +27,12 @@ export default function Navbar({ children }) {
         </div>
         <div className="flex items-center gap-3">
           {children}
+          {(user?.role === 'admin' || user?.role === 'agent') && (
+            <button onClick={() => navigate('/security')} title="Security settings"
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+              <ShieldCheck size={18} />
+            </button>
+          )}
           <span className="text-sm text-gray-500 hidden md:block">{user?.name}</span>
           <button onClick={handleLogout} title="Sign out"
             className="text-gray-400 hover:text-gray-600 transition-colors p-1">

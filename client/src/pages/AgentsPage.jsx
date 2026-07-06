@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { ArrowLeft, Plus, Trash2, Loader, Users, Mail, Phone, Calendar, Check, X, Ban, PlayCircle, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader, Users, Mail, Phone, Calendar, Check, X, Ban, PlayCircle, Eye, Key, Copy, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 const StatusPill = ({ status }) => {
   const map = {
@@ -27,6 +27,9 @@ export default function AgentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [resettingId, setResettingId] = useState(null);
+  const [credentials, setCredentials] = useState(null); // { name, email, password, emailSent }
+  const [copied, setCopied] = useState(false);
 
   const fetchAgents = () => {
     setLoading(true);
@@ -44,6 +47,12 @@ export default function AgentsPage() {
     try {
       const res = await axios.post('/agents', form);
       toast.success(res.data.message);
+      setCredentials({
+        name: form.name,
+        email: form.email,
+        password: res.data.password,
+        emailSent: res.data.emailSent,
+      });
       setForm({ name: '', email: '', phone: '' });
       setShowForm(false);
       fetchAgents();
@@ -52,6 +61,26 @@ export default function AgentsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResetPassword = async (id, name, email) => {
+    if (!window.confirm(`Reset the password for ${name}? Their current password will stop working.`)) return;
+    setResettingId(id);
+    try {
+      const res = await axios.patch(`/agents/${id}/reset-password`);
+      toast.success(res.data.message);
+      setCredentials({ name, email, password: res.data.password, emailSent: res.data.emailSent });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setResettingId(null);
+    }
+  };
+
+  const copyPassword = () => {
+    navigator.clipboard.writeText(credentials.password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDelete = async (id, name) => {
@@ -199,6 +228,14 @@ export default function AgentsPage() {
                       <Eye size={16} />
                     </Link>
 
+                    {agent.status !== 'pending' && (
+                      <button onClick={() => handleResetPassword(agent.id, agent.name, agent.email)}
+                        disabled={resettingId === agent.id}
+                        className="text-gray-400 hover:text-amber-600 transition-colors disabled:opacity-40 p-1" title="Reset password">
+                        {resettingId === agent.id ? <Loader size={16} className="animate-spin" /> : <Key size={16} />}
+                      </button>
+                    )}
+
                     {agent.status === 'pending' ? (
                       <>
                         <button onClick={() => handleStatus(agent.id, 'active')} disabled={busyId === agent.id}
@@ -234,6 +271,46 @@ export default function AgentsPage() {
           )}
         </div>
       </div>
+
+      {credentials && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-4 z-50">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`rounded-full p-2 ${credentials.emailSent ? 'bg-green-50' : 'bg-amber-50'}`}>
+                {credentials.emailSent
+                  ? <ShieldCheck size={20} className="text-green-600" />
+                  : <AlertTriangle size={20} className="text-amber-600" />}
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800">{credentials.name}'s credentials</h3>
+                <p className="text-xs text-gray-500">{credentials.email}</p>
+              </div>
+            </div>
+
+            {!credentials.emailSent && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700 mb-4">
+                The welcome email could not be sent. Copy the password below and share it with the agent directly.
+              </div>
+            )}
+
+            <label className="block text-xs font-medium text-gray-500 mb-1">Temporary password</label>
+            <div className="flex items-center gap-2 mb-5">
+              <code className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono text-gray-800 select-all">
+                {credentials.password}
+              </code>
+              <button onClick={copyPassword}
+                className="border border-gray-200 rounded-lg p-2.5 text-gray-500 hover:text-primary-600 hover:border-primary-300 transition-colors" title="Copy">
+                {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+              </button>
+            </div>
+
+            <button onClick={() => { setCredentials(null); setCopied(false); }}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white text-sm py-2.5 rounded-lg font-medium">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

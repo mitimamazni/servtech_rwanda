@@ -9,6 +9,7 @@ const {
   selfRegisterAgent,
   updateAgent,
   setAgentStatus,
+  resetAgentPassword,
 } = require('../controllers/agentController');
 
 const adminOnly = (req, res, next) => {
@@ -24,6 +25,7 @@ router.get('/agents/:id', auth, adminOnly, getAgentDetail);
 router.post('/agents', auth, adminOnly, createAgent);
 router.put('/agents/:id', auth, adminOnly, updateAgent);
 router.patch('/agents/:id/status', auth, adminOnly, setAgentStatus);
+router.patch('/agents/:id/reset-password', auth, adminOnly, resetAgentPassword);
 router.delete('/agents/:id', auth, adminOnly, deleteAgent);
 
 module.exports = router;

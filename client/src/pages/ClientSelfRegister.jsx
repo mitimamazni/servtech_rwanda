@@ -4,9 +4,11 @@ import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import { extractIdData } from '../utils/ocr';
 import Logo from '../components/Logo';
+import SelfieCapture from '../components/SelfieCapture';
+import Captcha from '../components/Captcha';
 import { Upload, CheckCircle, AlertCircle, Loader, ArrowLeft, ArrowRight, User, Phone } from 'lucide-react';
 
-const STEPS = ['Upload ID', 'Your Details', 'Contact Info', 'Confirm'];
+const STEPS = ['Upload ID', 'Your Details', 'Contact Info', 'Selfie', 'Confirm'];
 const DISTRICTS = ['Bugesera','Burera','Gakenke','Gasabo','Gatsibo','Gicumbi','Gisagara','Huye','Kamonyi','Karongi','Kayonza','Kicukiro','Kirehe','Muhanga','Musanze','Ngoma','Ngororero','Nyabihu','Nyagatare','Nyamasheke','Nyanza','Nyarugenge','Nyaruguru','Rubavu','Ruhango','Rulindo','Rusizi','Rutsiro','Rwamagana'];
 const MAX_ATTEMPTS = 3;
 
@@ -19,6 +21,7 @@ export default function ClientSelfRegister() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [captcha, setCaptcha] = useState({ captcha_token: null, captcha_answer: '' });
   const [attempts, setAttempts] = useState(0);
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [verifyingId, setVerifyingId] = useState(false);
@@ -27,6 +30,7 @@ export default function ClientSelfRegister() {
   const [form, setForm] = useState({
     id_number: '', first_name: '', last_name: '',
     date_of_birth: '', gender: '', phone: '', district: '', email: '',
+    selfie_data: null, id_document_data: null,
   });
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -40,6 +44,13 @@ export default function ClientSelfRegister() {
     setImagePreview(URL.createObjectURL(file));
     setOcrLoading(true);
     setOcrProgress(0);
+
+    // Keep a base64 copy of the ID document image for manual KYC review,
+    // independent of what the OCR pass does with it.
+    const reader = new FileReader();
+    reader.onload = () => update('id_document_data', reader.result);
+    reader.readAsDataURL(file);
+
     try {
       toast('Scanning your ID...', { icon: '🔍' });
       const extracted = await extractIdData(file, setOcrProgress);
@@ -127,7 +138,7 @@ export default function ClientSelfRegister() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await axios.post('/client/register', form);
+      await axios.post('/client/register', { ...form, ...captcha });
       toast.success('Registration successful! Check your email for login details.');
       navigate('/login');
     } catch (err) {
@@ -344,15 +355,28 @@ export default function ClientSelfRegister() {
             </div>
           )}
 
-          {/* STEP 3 - Confirm */}
+          {/* STEP 3 - Selfie */}
           {step === 3 && (
+            <div className="space-y-4">
+              <h2 className="font-medium text-gray-800">Identity Photo</h2>
+              <p className="text-sm text-gray-500">Take a live selfie so we can confirm it's really you registering.</p>
+              <SelfieCapture value={form.selfie_data} onChange={v => update('selfie_data', v)} />
+            </div>
+          )}
+
+          {/* STEP 4 - Confirm */}
+          {step === 4 && (
             <div className="space-y-4">
               <h2 className="font-medium text-gray-800">Confirm Registration</h2>
               <p className="text-sm text-gray-500">Review your details before submitting.</p>
 
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
-                  <div className="bg-primary-100 rounded-full p-2"><User size={18} className="text-primary-600" /></div>
+                  {form.selfie_data ? (
+                    <img src={form.selfie_data} alt="Your selfie" className="w-12 h-12 rounded-full object-cover" />
+                  ) : (
+                    <div className="bg-primary-100 rounded-full p-2"><User size={18} className="text-primary-600" /></div>
+                  )}
                   <div>
                     <p className="font-medium text-gray-800">{form.first_name} {form.last_name}</p>
                     <p className="text-xs text-gray-500 font-mono">{form.id_number}</p>
@@ -376,6 +400,8 @@ export default function ClientSelfRegister() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
                 After registration, your login credentials will be sent to <strong>{form.email}</strong>.
               </div>
+
+              <Captcha onChange={setCaptcha} />
             </div>
           )}
 
@@ -389,12 +415,12 @@ export default function ClientSelfRegister() {
             {step < STEPS.length - 1 ? (
               <button
                 onClick={() => setStep(s => s + 1)}
-                disabled={ocrLoading}
+                disabled={ocrLoading || (step === 3 && !form.selfie_data)}
                 className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-1 disabled:opacity-60">
                 Next <ArrowRight size={14} />
               </button>
             ) : (
-              <button onClick={handleSubmit} disabled={submitting}
+              <button onClick={handleSubmit} disabled={submitting || !captcha.captcha_answer}
                 className="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-60">
                 {submitting ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                 Submit Registration

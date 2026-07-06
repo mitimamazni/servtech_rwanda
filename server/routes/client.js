@@ -9,6 +9,8 @@ const {
   validateClient,
   rejectClient,
   setClientActive,
+  resubmitKyc,
+  getClientDocuments,
 } = require('../controllers/clientController');
 
 const adminOnly = (req, res, next) => {
@@ -29,8 +31,12 @@ router.post('/client/register', selfRegister);
 // Client dashboard — client must be logged in
 router.get('/client/dashboard', auth, getClientDashboard);
 
+// Client self-service — resubmit KYC after a rejection
+router.post('/client/resubmit', auth, resubmitKyc);
+
 // Admin: any client. Agent: only clients they personally registered (checked in controller).
 router.get('/client/:clientId/activity', auth, adminOrAgent, getClientActivity);
+router.get('/clients/:clientId/documents', auth, adminOrAgent, getClientDocuments);
 
 // Admin: any client. Agent: only clients they personally registered (checked in controller).
 router.put('/clients/:clientId', auth, adminOrAgent, updateClient);

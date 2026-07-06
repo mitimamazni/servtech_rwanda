@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle } from 'lucide-react';
+import { BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const OutcomeBadge = ({ outcome }) => {
   const map = {
@@ -18,6 +19,7 @@ const OutcomeBadge = ({ outcome }) => {
 };
 
 export default function ClientDashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,6 +69,10 @@ export default function ClientDashboard() {
                 <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-full text-sm font-medium">
                   <BadgeCheck size={15} /> Verified
                 </span>
+              ) : client?.status === 'rejected' ? (
+                <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-full text-sm font-medium">
+                  <AlertTriangle size={15} /> Verification Rejected
+                </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full text-sm font-medium">
                   <Clock size={15} /> Pending Verification
@@ -89,6 +95,19 @@ export default function ClientDashboard() {
               </div>
             ))}
           </div>
+
+          {client?.status === 'rejected' && (
+            <div className="mt-6 bg-red-50 border border-red-100 rounded-xl px-4 py-4">
+              <p className="text-sm text-red-700">
+                <span className="font-medium">Your verification was not approved.</span>
+                {client?.rejection_reason && <> Reason: {client.rejection_reason}</>}
+              </p>
+              <button onClick={() => navigate('/client/resubmit')}
+                className="mt-3 inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg font-medium">
+                <RefreshCw size={14} /> Resubmit for review
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Betting stats */}

@@ -5,9 +5,10 @@ import toast from 'react-hot-toast';
 import { extractIdData } from '../utils/ocr';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
+import SelfieCapture from '../components/SelfieCapture';
 import { Upload, CheckCircle, AlertCircle, Loader, ArrowLeft, ArrowRight, User, ScanLine } from 'lucide-react';
 
-const STEPS = ['Scan ID', 'Verify Details', 'Contact Info', 'Confirm'];
+const STEPS = ['Scan ID', 'Verify Details', 'Contact Info', 'Selfie (optional)', 'Confirm'];
 const DISTRICTS = ['Bugesera','Burera','Gakenke','Gasabo','Gatsibo','Gicumbi','Gisagara','Huye','Kamonyi','Karongi','Kayonza','Kicukiro','Kirehe','Muhanga','Musanze','Ngoma','Ngororero','Nyabihu','Nyagatare','Nyamasheke','Nyanza','Nyarugenge','Nyaruguru','Rubavu','Ruhango','Rulindo','Rusizi','Rutsiro','Rwamagana'];
 
 export default function Register() {
@@ -25,7 +26,7 @@ export default function Register() {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [elderly, setElderly] = useState(false);
   const [elderlyConfirmed, setElderlyConfirmed] = useState(false);
-  const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'' });
+  const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'', selfie_data: null, id_document_data: null });
   const update = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
   const handleImageChange = async (e) => {
@@ -35,6 +36,12 @@ export default function Register() {
     if (file.size > 5*1024*1024) { toast.error('Image must be under 5MB'); return; }
     setImagePreview(URL.createObjectURL(file));
     setOcrLoading(true); setOcrProgress(0);
+
+    // Keep a base64 copy of the ID document image for manual KYC review.
+    const reader = new FileReader();
+    reader.onload = () => update('id_document_data', reader.result);
+    reader.readAsDataURL(file);
+
     try {
       toast('Scanning ID document...', { icon: '🔍' });
       const extracted = await extractIdData(file, setOcrProgress);
@@ -232,10 +239,27 @@ export default function Register() {
 
           {step === 3 && (
             <div className="space-y-4">
+              <h2 className="font-medium text-gray-800">Identity Photo <span className="text-xs font-normal text-gray-400">(optional)</span></h2>
+              <p className="text-sm text-gray-500">Since you're registering this client in person, a selfie is optional — but adding one strengthens the KYC record.</p>
+              <SelfieCapture value={form.selfie_data} onChange={v => update('selfie_data', v)} label="Client photo" required={false} />
+              {!form.selfie_data && (
+                <button onClick={() => setStep(4)} className="w-full text-sm text-gray-400 hover:text-gray-600 py-2 border border-dashed border-gray-200 rounded-lg">
+                  Skip this step
+                </button>
+              )}
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-4">
               <h2 className="font-medium text-gray-800">Confirm and Submit</h2>
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
-                  <div className="bg-primary-100 rounded-full p-2.5"><User size={18} className="text-primary-600" /></div>
+                  {form.selfie_data ? (
+                    <img src={form.selfie_data} alt="Client selfie" className="w-12 h-12 rounded-full object-cover" />
+                  ) : (
+                    <div className="bg-primary-100 rounded-full p-2.5"><User size={18} className="text-primary-600" /></div>
+                  )}
                   <div>
                     <p className="font-semibold text-gray-800">{form.first_name} {form.last_name}</p>
                     <p className="text-xs text-gray-500 font-mono">{form.id_number}</p>

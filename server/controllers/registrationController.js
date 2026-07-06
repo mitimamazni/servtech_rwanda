@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { validateImageDataUrl } = require('../utils/kyc');
 
 const MIN_AGE = 18;
 const ELDERLY_AGE = 80;
@@ -81,9 +82,16 @@ exports.verifyId = async (req, res) => {
 };
 
 exports.registerClient = async (req, res) => {
-  const { id_number, first_name, last_name, date_of_birth, gender, phone, district, elderly_confirmed } = req.body;
+  const { id_number, first_name, last_name, date_of_birth, gender, phone, district, elderly_confirmed, selfie_data, id_document_data } = req.body;
 
   try {
+    // Optional here — the agent has already confirmed identity in person —
+    // but if provided, images still must be well-formed.
+    const selfieError = validateImageDataUrl(selfie_data, { required: false, label: 'Selfie photo' });
+    if (selfieError) return res.status(400).json({ message: selfieError });
+    const idDocError = validateImageDataUrl(id_document_data, { required: false, label: 'ID document photo' });
+    if (idDocError) return res.status(400).json({ message: idDocError });
+
     // Age gate — agents may not register minors under any circumstances.
     const age = getAgeFromId(id_number);
     if (age < MIN_AGE) {
@@ -134,9 +142,10 @@ exports.registerClient = async (req, res) => {
     const elderlyAssisted = age > ELDERLY_AGE;
 
     const result = await pool.query(
-      `INSERT INTO clients (id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderlyAssisted, req.user.id]
+      `INSERT INTO clients (id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, selfie_data, id_document_data, kyc_submitted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+       RETURNING id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, created_at`,
+      [id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderlyAssisted, req.user.id, selfie_data || null, id_document_data || null]
     );
 
     await pool.query(
@@ -158,7 +167,12 @@ exports.getClients = async (req, res) => {
 
   try {
     let query = `
-      SELECT c.*, u.name as agent_name, u.phone as agent_phone, u.email as agent_email
+      SELECT c.id, c.user_id, c.id_number, c.first_name, c.last_name, c.date_of_birth,
+             c.gender, c.phone, c.district, c.status, c.rejection_reason, c.is_active,
+             c.elderly_assisted, c.registered_by, c.created_at, c.kyc_submitted_at,
+             (c.selfie_data IS NOT NULL) AS has_selfie,
+             (c.id_document_data IS NOT NULL) AS has_id_document,
+             u.name as agent_name, u.phone as agent_phone, u.email as agent_email
       FROM clients c
       LEFT JOIN users u ON c.registered_by = u.id
       WHERE 1=1

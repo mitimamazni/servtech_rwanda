@@ -22,6 +22,19 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const res = await axios.post('/auth/login', { email, password });
+    if (res.data.requires2FA) {
+      return { requires2FA: true, pendingToken: res.data.pendingToken };
+    }
+    const { token: newToken, user: newUser } = res.data;
+    localStorage.setItem('token', newToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+    setToken(newToken);
+    setUser(newUser);
+    return newUser;
+  };
+
+  const verify2FA = async (pendingToken, code) => {
+    const res = await axios.post('/auth/login/2fa-verify', { pendingToken, code });
     const { token: newToken, user: newUser } = res.data;
     localStorage.setItem('token', newToken);
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
@@ -38,7 +51,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, verify2FA, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

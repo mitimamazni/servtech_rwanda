@@ -3,28 +3,82 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import Logo from '../components/Logo';
+import { ShieldCheck, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, verify2FA } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [pendingToken, setPendingToken] = useState(null);
+  const [code, setCode] = useState('');
+
+  const goToDashboard = (user) => {
+    toast.success(`Welcome back, ${user.name}`);
+    if (user.role === 'admin')  navigate('/admin/dashboard');
+    else if (user.role === 'agent')  navigate('/agent/dashboard');
+    else if (user.role === 'client') navigate('/client/dashboard');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const user = await login(form.email, form.password);
-      toast.success(`Welcome back, ${user.name}`);
-      if (user.role === 'admin')  navigate('/admin/dashboard');
-      else if (user.role === 'agent')  navigate('/agent/dashboard');
-      else if (user.role === 'client') navigate('/client/dashboard');
+      const result = await login(form.email, form.password);
+      if (result.requires2FA) {
+        setPendingToken(result.pendingToken);
+      } else {
+        goToDashboard(result);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const user = await verify2FA(pendingToken, code);
+      goToDashboard(user);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (pendingToken) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-md">
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-primary-50 rounded-full p-3 mb-3">
+              <ShieldCheck size={28} className="text-primary-600" />
+            </div>
+            <h1 className="text-xl font-semibold text-gray-800">Two-factor verification</h1>
+            <p className="text-gray-500 text-sm mt-1 text-center">Enter the 6-digit code from your authenticator app</p>
+          </div>
+          <form onSubmit={handleVerify2FA} className="space-y-4">
+            <input type="text" inputMode="numeric" autoFocus required value={code}
+              onChange={e => setCode(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-4 py-3 text-center text-lg tracking-[0.3em] font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="000000" maxLength={6} />
+            <button type="submit" disabled={loading}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors disabled:opacity-60">
+              {loading ? 'Verifying...' : 'Verify'}
+            </button>
+            <button type="button" onClick={() => { setPendingToken(null); setCode(''); }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 flex items-center justify-center gap-1.5">
+              <ArrowLeft size={13} /> Back to login
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -74,3 +128,4 @@ export default function Login() {
     </div>
   );
 }
+

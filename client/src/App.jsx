@@ -6,8 +6,11 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import AgentDashboard from './pages/AgentDashboard';
 import ClientDashboard from './pages/ClientDashboard';
+import ClientResubmit from './pages/ClientResubmit';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import SecuritySettings from './pages/SecuritySettings';
 import Register from './pages/Register';
-import AgentRegister from './pages/AgentRegister';
+import ManualClientRegister from './pages/ManualClientRegister';
 import ClientSelfRegister from './pages/ClientSelfRegister';
 import AgentSelfRegister from './pages/AgentSelfRegister';
 import AuditLog from './pages/AuditLog';
@@ -55,7 +58,9 @@ function AppRoutes() {
       <Route path="/admin/audit"                  element={<PrivateRoute roles={['admin']}><AuditLog /></PrivateRoute>} />
       <Route path="/admin/client/:clientId/activity" element={<PrivateRoute roles={['admin']}><ClientActivity /></PrivateRoute>} />
       <Route path="/admin/register"               element={<PrivateRoute roles={['admin']}><Register /></PrivateRoute>} />
-      <Route path="/admin/agent-register"         element={<PrivateRoute roles={['admin']}><AgentRegister /></PrivateRoute>} />
+      <Route path="/admin/manual-register"        element={<PrivateRoute roles={['admin']}><ManualClientRegister /></PrivateRoute>} />
+      <Route path="/admin/analytics"               element={<PrivateRoute roles={['admin']}><AnalyticsDashboard /></PrivateRoute>} />
+      <Route path="/security"                       element={<PrivateRoute roles={['admin', 'agent']}><SecuritySettings /></PrivateRoute>} />
 
       {/* Agent only routes — no agent-register route for agents */}
       <Route path="/agent/dashboard" element={<PrivateRoute roles={['agent']}><AgentDashboard /></PrivateRoute>} />
@@ -64,6 +69,7 @@ function AppRoutes() {
 
       {/* Client only routes */}
       <Route path="/client/dashboard" element={<PrivateRoute roles={['client']}><ClientDashboard /></PrivateRoute>} />
+      <Route path="/client/resubmit" element={<PrivateRoute roles={['client']}><ClientResubmit /></PrivateRoute>} />
 
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>

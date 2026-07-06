@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { sendAgentWelcomeEmail, sendAgentApprovedEmail } = require('../utils/email');
+const { verifyChallenge } = require('../utils/captcha');
 
 // GET all agents (includes pending applications and suspended accounts)
 exports.getAgents = async (req, res) => {
@@ -49,13 +50,16 @@ exports.getAgentDetail = async (req, res) => {
 // PUBLIC — an aspiring agent applies for an account. Account is created immediately
 // but with status 'pending', so it cannot log in until an admin approves it.
 exports.selfRegisterAgent = async (req, res) => {
-  const { name, email, phone, password } = req.body;
+  const { name, email, phone, password, captcha_token, captcha_answer } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Name, email and password are required' });
   }
   if (password.length < 8) {
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   }
+
+  const captchaError = verifyChallenge(captcha_token, captcha_answer);
+  if (captchaError) return res.status(400).json({ message: captchaError });
 
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
@@ -169,10 +173,55 @@ exports.createAgent = async (req, res) => {
       [req.user.id, 'CREATE_AGENT', `Admin created agent: ${email}`]
     );
 
-    // Send welcome email with credentials
-    await sendAgentWelcomeEmail({ name, email, password: rawPassword });
+    // Send welcome email with credentials. Regardless of whether the email
+    // actually goes out (e.g. RESEND_API_KEY missing/misconfigured, provider
+    // error), the raw password is always returned in the API response below
+    // so the admin can see and hand over the credentials directly.
+    const emailResult = await sendAgentWelcomeEmail({ name, email, password: rawPassword });
 
-    res.status(201).json({ agent: result.rows[0], message: 'Agent created and credentials sent by email' });
+    res.status(201).json({
+      agent: result.rows[0],
+      password: rawPassword,
+      emailSent: !!emailResult?.success,
+      message: emailResult?.success
+        ? 'Agent created and credentials sent by email'
+        : 'Agent created. Email could not be sent — copy the password below and share it with the agent directly.',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only — regenerate an agent's password (e.g. they lost it, or the
+// welcome email never arrived when the account was first created).
+// Returns the new raw password in the response for the same reason createAgent does.
+exports.resetAgentPassword = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const existing = await pool.query(`SELECT id, name, email FROM users WHERE id = $1 AND role = 'agent'`, [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ message: 'Agent not found' });
+    const agent = existing.rows[0];
+
+    const rawPassword = `ST@${Math.random().toString(36).slice(2, 8).toUpperCase()}${Math.floor(100 + Math.random() * 900)}!`;
+    const hashed = await bcrypt.hash(rawPassword, 10);
+
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, id]);
+
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
+      [req.user.id, 'RESET_AGENT_PASSWORD', `Admin reset password for agent: ${agent.email}`]
+    );
+
+    const emailResult = await sendAgentWelcomeEmail({ name: agent.name, email: agent.email, password: rawPassword });
+
+    res.json({
+      password: rawPassword,
+      emailSent: !!emailResult?.success,
+      message: emailResult?.success
+        ? 'Password reset and new credentials sent by email'
+        : 'Password reset. Email could not be sent — copy the password below and share it with the agent directly.',
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

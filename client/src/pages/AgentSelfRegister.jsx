@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Logo from '../components/Logo';
+import Captcha from '../components/Captcha';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function AgentSelfRegister() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
+  const [captcha, setCaptcha] = useState({ captcha_token: null, captcha_answer: '' });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -23,6 +25,10 @@ export default function AgentSelfRegister() {
       toast.error('Passwords do not match');
       return;
     }
+    if (!captcha.captcha_answer) {
+      toast.error('Please answer the CAPTCHA');
+      return;
+    }
     setLoading(true);
     try {
       await axios.post('/agents/self-register', {
@@ -30,6 +36,7 @@ export default function AgentSelfRegister() {
         email: form.email,
         phone: form.phone,
         password: form.password,
+        ...captcha,
       });
       setSubmitted(true);
     } catch (err) {
@@ -98,6 +105,7 @@ export default function AgentSelfRegister() {
               className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Re-enter your password" />
           </div>
+          <Captcha onChange={setCaptcha} />
           <button type="submit" disabled={loading}
             className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors disabled:opacity-60">
             {loading ? 'Submitting...' : 'Submit application'}
