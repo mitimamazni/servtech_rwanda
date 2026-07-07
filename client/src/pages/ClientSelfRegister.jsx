@@ -7,6 +7,7 @@ import Logo from '../components/Logo';
 import SelfieCapture from '../components/SelfieCapture';
 import Captcha from '../components/Captcha';
 import { Upload, CheckCircle, AlertCircle, Loader, ArrowLeft, ArrowRight, User, Phone } from 'lucide-react';
+import { yearMismatch } from '../utils/idValidation';
 
 const STEPS = ['Upload ID', 'Your Details', 'Contact Info', 'Selfie', 'Confirm'];
 const DISTRICTS = ['Bugesera','Burera','Gakenke','Gasabo','Gatsibo','Gicumbi','Gisagara','Huye','Kamonyi','Karongi','Kayonza','Kicukiro','Kirehe','Muhanga','Musanze','Ngoma','Ngororero','Nyabihu','Nyagatare','Nyamasheke','Nyanza','Nyarugenge','Nyaruguru','Rubavu','Ruhango','Rulindo','Rusizi','Rutsiro','Rwamagana'];
@@ -34,6 +35,7 @@ export default function ClientSelfRegister() {
   });
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const dobMismatch = yearMismatch(form.id_number, form.date_of_birth);
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
@@ -143,6 +145,11 @@ export default function ClientSelfRegister() {
       navigate('/login');
     } catch (err) {
       if (err.response?.data?.elderlyAssistRequired) {
+        toast.error(err.response.data.message, { duration: 6000 });
+        return;
+      }
+      if (err.response?.data?.yearMismatch) {
+        setStep(1);
         toast.error(err.response.data.message, { duration: 6000 });
         return;
       }
@@ -302,6 +309,12 @@ export default function ClientSelfRegister() {
                 )}
               </div>
 
+              {dobMismatch && (
+                <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <AlertCircle size={16} /> Birth year doesn't match the ID number (umwaka w'amavuko ntabwo uhura n'uwo muri ID). Please double-check the ID number and date of birth.
+                </div>
+              )}
+
               {[
                 { label: 'First Name',    field: 'first_name',    type: 'text' },
                 { label: 'Last Name',     field: 'last_name',     type: 'text' },
@@ -415,7 +428,7 @@ export default function ClientSelfRegister() {
             {step < STEPS.length - 1 ? (
               <button
                 onClick={() => setStep(s => s + 1)}
-                disabled={ocrLoading || (step === 3 && !form.selfie_data)}
+                disabled={ocrLoading || (step === 3 && !form.selfie_data) || (step === 1 && dobMismatch)}
                 className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-1 disabled:opacity-60">
                 Next <ArrowRight size={14} />
               </button>

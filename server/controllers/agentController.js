@@ -65,6 +65,22 @@ exports.selfRegisterAgent = async (req, res) => {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) return res.status(400).json({ message: 'Email already in use' });
 
+    // Agents may not also hold a client (betting) account, to avoid conflicts
+    // of interest. Agents don't submit a national ID, so phone number is the
+    // only field shared between the two records that can catch this.
+    if (phone) {
+      const existingClient = await pool.query(
+        "SELECT id FROM clients WHERE phone = $1 AND status != 'rejected'",
+        [phone]
+      );
+      if (existingClient.rows.length > 0) {
+        return res.status(400).json({
+          message: 'This phone number is already registered to a client account. Agents cannot also hold a client account.',
+          clientConflict: true,
+        });
+      }
+    }
+
     const hashed = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
@@ -157,6 +173,21 @@ exports.createAgent = async (req, res) => {
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) return res.status(400).json({ message: 'Email already in use' });
+
+    // Same conflict-of-interest guard as self-registration: an agent cannot
+    // also be a registered client. Matched on phone since agents have no ID number.
+    if (phone) {
+      const existingClient = await pool.query(
+        "SELECT id FROM clients WHERE phone = $1 AND status != 'rejected'",
+        [phone]
+      );
+      if (existingClient.rows.length > 0) {
+        return res.status(400).json({
+          message: 'This phone number is already registered to a client account. Agents cannot also hold a client account.',
+          clientConflict: true,
+        });
+      }
+    }
 
     // Generate a strong temp password
     const rawPassword = `ST@${Math.random().toString(36).slice(2, 8).toUpperCase()}${Math.floor(100 + Math.random() * 900)}!`;

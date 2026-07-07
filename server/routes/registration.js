@@ -42,7 +42,14 @@ const validateRegistration = [
   },
 ];
 
-router.post('/verify-id', auth, verifyId);
+// Not gated behind `auth` — self-registering clients don't have a session
+// token yet (that's the whole point of self-registration), so this must be
+// reachable unauthenticated too. The handler itself never touches req.user.
+// (Previously requiring `auth` here meant every /verify-id call from the
+// public self-registration flow silently 401'd and fell through to a
+// generic "ID not found" state on the client, masking the real
+// underage/elderly messages for self-service registrants.)
+router.post('/verify-id', verifyId);
 router.post('/register', auth, validateRegistration, registerClient);
 router.get('/clients', auth, getClients);
 router.get('/stats', auth, getStats);

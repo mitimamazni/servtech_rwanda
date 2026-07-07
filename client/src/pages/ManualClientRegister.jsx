@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import SelfieCapture from '../components/SelfieCapture';
 import { ArrowLeft, CheckCircle, AlertCircle, Loader, User, ClipboardList } from 'lucide-react';
+import { yearMismatch } from '../utils/idValidation';
 
 const STEPS = ['ID Lookup', 'Personal Details', 'Contact Info', 'Selfie (optional)', 'Confirm'];
 const DISTRICTS = ['Bugesera','Burera','Gakenke','Gasabo','Gatsibo','Gicumbi','Gisagara','Huye','Kamonyi','Karongi','Kayonza','Kicukiro','Kirehe','Muhanga','Musanze','Ngoma','Ngororero','Nyabihu','Nyagatare','Nyamasheke','Nyanza','Nyarugenge','Nyaruguru','Rubavu','Ruhango','Rulindo','Rusizi','Rutsiro','Rwamagana'];
@@ -23,6 +24,7 @@ export default function ManualClientRegister() {
   const [elderlyConfirmed, setElderlyConfirmed] = useState(false);
   const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'', selfie_data: null });
   const update = (f, v) => setForm(p => ({ ...p, [f]: v }));
+  const dobMismatch = yearMismatch(form.id_number, form.date_of_birth);
 
   const handleVerify = async () => {
     if (!form.id_number) { toast.error('Enter an ID number first'); return; }
@@ -71,6 +73,9 @@ export default function ManualClientRegister() {
       if (err.response?.data?.elderlyConfirmRequired) {
         setElderly(true);
         toast.error(err.response.data.message);
+      } else if (err.response?.data?.yearMismatch) {
+        setStep(1);
+        toast.error(err.response.data.message, { duration: 6000 });
       } else {
         toast.error(err.response?.data?.message || 'Registration failed');
       }
@@ -165,6 +170,11 @@ export default function ManualClientRegister() {
                     className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500" />
                 </div>
               ))}
+              {dobMismatch && (
+                <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <AlertCircle size={16} /> Umwaka w'amavuko ntabwo uhura n'umwaka uri muri ID (birth year doesn't match the ID number). Please double-check the ID number and date of birth.
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Igitsina</label>
                 <select value={form.gender} onChange={e => update('gender', e.target.value)}
@@ -238,6 +248,11 @@ export default function ManualClientRegister() {
               <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-600">
                 By submitting you confirm you have verified the client's identity in person. This registration will be logged under your account.
               </div>
+              {dobMismatch && (
+                <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <AlertCircle size={16} /> Birth year doesn't match the ID number — go back to Personal Details and fix the date of birth or ID number before submitting.
+                </div>
+              )}
               {elderly && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
                   <label className="flex items-start gap-2 cursor-pointer">
@@ -260,7 +275,7 @@ export default function ManualClientRegister() {
                 Continue
               </button>
             ) : (
-              <button onClick={handleSubmit} disabled={submitting || (elderly && !elderlyConfirmed)}
+              <button onClick={handleSubmit} disabled={submitting || dobMismatch || (elderly && !elderlyConfirmed)}
                 className="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-60">
                 {submitting ? <><Loader size={14} className="animate-spin" /> Saving...</> : <><CheckCircle size={14} /> Register Client</>}
               </button>

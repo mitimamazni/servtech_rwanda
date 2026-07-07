@@ -102,6 +102,22 @@ exports.selfRegister = async (req, res) => {
       });
     }
 
+    // Agents may not also hold a client (betting) account, to avoid conflicts
+    // of interest. Agents don't have a national ID on file, so phone number
+    // is the field that can catch a person trying to register as both.
+    if (phone) {
+      const existingAgent = await pool.query(
+        "SELECT id FROM users WHERE phone = $1 AND role = 'agent'",
+        [phone]
+      );
+      if (existingAgent.rows.length > 0) {
+        return res.status(400).json({
+          message: 'This phone number is already registered to an agent account. Agents cannot also hold a client account.',
+          agentConflict: true,
+        });
+      }
+    }
+
     // KYC document validation — a selfie is required for self-service registration
     // since there's no agent present to confirm identity in person. Checked here,
     // after the age gate, so an underage/elderly rejection doesn't demand a photo first.
