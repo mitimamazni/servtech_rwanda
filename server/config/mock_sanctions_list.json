@@ -1,0 +1,10 @@
+{
+  "_comment": "MOCK DATA — fictional names for demo/defense purposes only. A production system would call a real sanctions/PEP screening provider (e.g. ComplyAdvantage, Refinitiv World-Check) instead of matching against a static local list.",
+  "entries": [
+    { "name": "Jean Baptiste Rugamba", "reason": "Mock PEP - fictional former official" },
+    { "name": "Alphonse Nkurunziza", "reason": "Mock sanctions - fictional watchlist entry" },
+    { "name": "Emmanuel Habimana", "reason": "Mock PEP - fictional politically exposed person" },
+    { "name": "Solange Uwimana", "reason": "Mock sanctions - fictional watchlist entry" },
+    { "name": "Innocent Bizimana", "reason": "Mock PEP - fictional politically exposed person" }
+  ]
+}

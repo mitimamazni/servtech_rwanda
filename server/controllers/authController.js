@@ -10,11 +10,16 @@ const issueSessionToken = (user) =>
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  const ip = req.ip;
+
+  const logAttempt = (success, reason) =>
+    pool.query('INSERT INTO login_attempts (email, ip_address, success, reason) VALUES ($1, $2, $3, $4)', [email, ip, success, reason]);
 
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {
+      await logAttempt(false, 'invalid_credentials');
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -22,16 +27,19 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
+      await logAttempt(false, 'invalid_credentials');
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     if (user.status === 'pending') {
+      await logAttempt(false, 'account_pending');
       return res.status(403).json({
         message: 'Your agent application is still awaiting admin approval. You will be able to log in once it is approved.',
       });
     }
 
     if (user.status === 'suspended') {
+      await logAttempt(false, 'account_suspended');
       return res.status(403).json({
         message: 'This account has been deactivated. Please contact a ServTech administrator.',
       });
@@ -40,11 +48,13 @@ exports.login = async (req, res) => {
     // If 2FA is enabled, don't issue a full session token yet — issue a
     // short-lived pending token that only 2fa-verify will accept.
     if (user.totp_enabled) {
+      await logAttempt(true, 'password_ok_awaiting_2fa');
       const pendingToken = jwt.sign({ id: user.id, pending2FA: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
       return res.json({ requires2FA: true, pendingToken });
     }
 
     const token = issueSessionToken(user);
+    await logAttempt(true, 'login_success');
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
@@ -61,6 +71,7 @@ exports.login = async (req, res) => {
 // Second step of login when 2FA is enabled.
 exports.verify2FALogin = async (req, res) => {
   const { pendingToken, code } = req.body;
+  const ip = req.ip;
   try {
     let decoded;
     try {
@@ -75,9 +86,15 @@ exports.verify2FALogin = async (req, res) => {
     if (!user || !user.totp_enabled) return res.status(400).json({ message: 'Invalid login session.' });
 
     const valid = speakeasy.totp.verify({ secret: user.totp_secret, encoding: 'base32', token: code, window: 1 });
-    if (!valid) return res.status(400).json({ message: 'Incorrect authentication code.' });
+    if (!valid) {
+      await pool.query('INSERT INTO login_attempts (email, ip_address, success, reason) VALUES ($1, $2, $3, $4)',
+        [user.email, ip, false, 'invalid_2fa_code']);
+      return res.status(400).json({ message: 'Incorrect authentication code.' });
+    }
 
     const token = issueSessionToken(user);
+    await pool.query('INSERT INTO login_attempts (email, ip_address, success, reason) VALUES ($1, $2, $3, $4)',
+      [user.email, ip, true, '2fa_verified']);
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',

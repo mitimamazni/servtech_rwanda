@@ -114,6 +114,17 @@ export default function ClientActivity() {
       .finally(() => setDocumentsLoading(false));
   };
 
+  const handleToggleOptIn = async (field) => {
+    const current = data?.client?.[field];
+    try {
+      const res = await axios.put(`/clients/${clientId}`, { [field]: !current });
+      setData(d => ({ ...d, client: { ...d.client, [field]: res.data.client[field] } }));
+      toast.success('Preference updated');
+    } catch (err) {
+      toast.error('Failed to update preference');
+    }
+  };
+
   const handleReject = async () => {
     const reason = rejectReason === 'Other (specify below)' ? rejectReasonOther : rejectReason;
     setBusy(true);
@@ -196,6 +207,42 @@ export default function ClientActivity() {
               <span className="font-medium">Rejection reason:</span> {client.rejection_reason}
             </div>
           )}
+
+          {(client?.face_match_score != null || client?.document_authenticity_score != null || client?.sanctions_flag) && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                <ShieldAlert size={12} /> Automated KYC Screening <span className="text-gray-300">(simulated for demo)</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {client?.face_match_score != null && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full border ${client.face_match_score >= 60 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                    Face match: {client.face_match_score}%
+                  </span>
+                )}
+                {client?.document_authenticity_score != null && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full border ${client.document_authenticity_score >= 50 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                    Document authenticity: {client.document_authenticity_score}%
+                  </span>
+                )}
+                {client?.sanctions_flag && (
+                  <span className="text-xs px-2.5 py-1 rounded-full border bg-red-50 text-red-700 border-red-200">
+                    ⚠ Sanctions/PEP match: {client.sanctions_match_name}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-gray-100 flex gap-6">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={!!client?.email_opt_in} onChange={() => handleToggleOptIn('email_opt_in')} className="rounded border-gray-300" />
+              Email opt-in
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={!!client?.sms_opt_in} onChange={() => handleToggleOptIn('sms_opt_in')} className="rounded border-gray-300" />
+              SMS opt-in
+            </label>
+          </div>
 
           {(client?.has_selfie || client?.has_id_document) && (
             <div className="mt-4 pt-4 border-t border-gray-100">

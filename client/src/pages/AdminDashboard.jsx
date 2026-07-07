@@ -7,7 +7,8 @@ import { SkeletonCard } from '../components/Skeleton';
 import {
   Users, UserCheck, UserX, CalendarDays, Plus, Search,
   ChevronLeft, ChevronRight, BadgeCheck, Clock, XCircle,
-  ShieldCheck, UserCog, BarChart2, Loader, ClipboardList, Camera
+  ShieldCheck, UserCog, BarChart2, Loader, ClipboardList, Camera,
+  ShieldAlert as ShieldAlert2, Workflow as Workflow2, Mail as Mail2
 } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -72,6 +73,15 @@ export default function AdminDashboard() {
         </button>
         <button onClick={() => navigate('/admin/analytics')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <BarChart2 size={15} /> Analytics
+        </button>
+        <button onClick={() => navigate('/admin/security')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <ShieldAlert2 size={15} /> Security
+        </button>
+        <button onClick={() => navigate('/admin/automation')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <Workflow2 size={15} /> Automation
+        </button>
+        <button onClick={() => navigate('/admin/communications')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <Mail2 size={15} /> Messages
         </button>
         <button onClick={() => navigate('/admin/register')} className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={15} /> New Client

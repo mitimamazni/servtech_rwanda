@@ -130,3 +130,32 @@ exports.sendClientWelcomeEmail = async ({ name, email, password }) => {
     return { success: false };
   }
 };
+
+// Generic templated email send — used by the Communications module (message
+// templates, bulk messaging, and automated approval/rejection notifications)
+// so that free-text subject/body from an admin-authored template can go out
+// without needing a bespoke function for every message.
+exports.sendRawEmail = async (to, subject, bodyText) => {
+  try {
+    if (!resend) {
+      console.warn('[email] Skipped sending — RESEND_API_KEY not configured.');
+      return { success: false, skipped: true };
+    }
+    await resend.emails.send({
+      from: 'ServTech Rwanda <noreply@servtech.rw>',
+      to,
+      subject: subject || 'Notification from ServTech Rwanda',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#f9fafb;border-radius:12px;">
+          <div style="background:white;border-radius:10px;padding:24px;border:1px solid #e5e7eb;">
+            <p style="color:#374151;white-space:pre-wrap;margin:0;">${bodyText}</p>
+          </div>
+          <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:20px;">ServTech Rwanda - Client Registration System</p>
+        </div>`,
+    });
+    return { success: true };
+  } catch (err) {
+    console.error('Email error:', err);
+    return { success: false };
+  }
+};

@@ -1,6 +1,6 @@
 -- Migration v5 — Security monitoring, KYC screening (mock), workflow automation,
--- client communications, and Row Level Security retrofit for all tables.
--- Safe to re-run. Usage: psql "$DATABASE_URL" -f server/config/migration_v5.sql
+-- and client communications. Safe to re-run.
+-- Usage: psql "$DATABASE_URL" -f server/config/migration_v5.sql
 
 -- ── Module 8: Security & Access Control ──────────────────────────────────
 CREATE TABLE IF NOT EXISTS login_attempts (
@@ -98,33 +98,3 @@ SELECT * FROM (VALUES
   ('Verification Reminder','sms',  NULL, 'Hi {first_name}, your ServTech Rwanda verification is still pending. Please check your email for any required action.')
 ) AS t(name, channel, subject, body)
 WHERE NOT EXISTS (SELECT 1 FROM message_templates);
-
--- ── Row Level Security (retrofit) ─────────────────────────────────────────
--- Supabase auto-exposes every public-schema table via PostgREST to the
--- anon/authenticated keys unless RLS blocks it. This backend connects
--- directly as the `postgres` superuser (see server/config/db.js), which
--- bypasses RLS entirely, so none of this affects the app itself — it only
--- closes the unused auto-generated API surface.
---
--- Covers both the brand-new tables above AND the original tables from
--- schema.sql, which were never RLS-enabled on the live database.
-
-DO $$
-DECLARE
-  t TEXT;
-BEGIN
-  FOR t IN
-    SELECT unnest(ARRAY[
-      'users', 'id_records', 'clients', 'betting_activity', 'audit_logs',
-      'login_attempts', 'blocked_ips', 'automation_rules',
-      'workflow_execution_log', 'message_templates', 'message_log'
-    ])
-  LOOP
-    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', t);
-    EXECUTE format('DROP POLICY IF EXISTS service_role_only ON %I;', t);
-    EXECUTE format(
-      'CREATE POLICY service_role_only ON %I FOR ALL USING (auth.role() = ''service_role'') WITH CHECK (auth.role() = ''service_role'');',
-      t
-    );
-  END LOOP;
-END $$;

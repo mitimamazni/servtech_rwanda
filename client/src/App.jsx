@@ -8,6 +8,9 @@ import AgentDashboard from './pages/AgentDashboard';
 import ClientDashboard from './pages/ClientDashboard';
 import ClientResubmit from './pages/ClientResubmit';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import SecurityMonitoring from './pages/SecurityMonitoring';
+import WorkflowAutomation from './pages/WorkflowAutomation';
+import Communications from './pages/Communications';
 import SecuritySettings from './pages/SecuritySettings';
 import Register from './pages/Register';
 import ManualClientRegister from './pages/ManualClientRegister';
@@ -60,6 +63,9 @@ function AppRoutes() {
       <Route path="/admin/register"               element={<PrivateRoute roles={['admin']}><Register /></PrivateRoute>} />
       <Route path="/admin/manual-register"        element={<PrivateRoute roles={['admin']}><ManualClientRegister /></PrivateRoute>} />
       <Route path="/admin/analytics"               element={<PrivateRoute roles={['admin']}><AnalyticsDashboard /></PrivateRoute>} />
+      <Route path="/admin/security"                 element={<PrivateRoute roles={['admin']}><SecurityMonitoring /></PrivateRoute>} />
+      <Route path="/admin/automation"               element={<PrivateRoute roles={['admin']}><WorkflowAutomation /></PrivateRoute>} />
+      <Route path="/admin/communications"           element={<PrivateRoute roles={['admin']}><Communications /></PrivateRoute>} />
       <Route path="/security"                       element={<PrivateRoute roles={['admin', 'agent']}><SecuritySettings /></PrivateRoute>} />
 
       {/* Agent only routes — no agent-register route for agents */}

@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { validateImageDataUrl } = require('../utils/kyc');
+const { runRegistrationWorkflow } = require('../utils/workflowEngine');
 
 const MIN_AGE = 18;
 const ELDERLY_AGE = 80;
@@ -138,14 +139,36 @@ exports.registerClient = async (req, res) => {
     await pool.query("DELETE FROM clients WHERE id_number = $1 AND status = 'rejected'", [id_number]);
 
     const idCheck = await pool.query('SELECT id FROM id_records WHERE id_number = $1 AND valid = true', [id_number]);
-    const status = idCheck.rows.length > 0 ? 'verified' : 'pending';
+    const registryMatch = idCheck.rows.length > 0;
     const elderlyAssisted = age > ELDERLY_AGE;
 
-    const result = await pool.query(
+    const insertResult = await pool.query(
       `INSERT INTO clients (id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, selfie_data, id_document_data, kyc_submitted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, NOW())
+       RETURNING id`,
+      [id_number, first_name, last_name, date_of_birth, gender, phone, district, elderlyAssisted, req.user.id, selfie_data || null, id_document_data || null]
+    );
+    const newClientId = insertResult.rows[0].id;
+
+    // Agent has already confirmed identity in person, but registration still
+    // runs through the same configurable automation rules (mock screening +
+    // registry auto-verify) for a consistent, auditable decision trail.
+    const workflowResult = await runRegistrationWorkflow({
+      clientId: newClientId,
+      firstName: first_name,
+      lastName: last_name,
+      selfieData: selfie_data,
+      idDocumentData: id_document_data,
+      registryMatch,
+    });
+    const status = workflowResult.status;
+
+    const result = await pool.query(
+      `UPDATE clients SET status = $1, face_match_score = $2, document_authenticity_score = $3,
+              sanctions_flag = $4, sanctions_match_name = $5
+       WHERE id = $6
        RETURNING id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, created_at`,
-      [id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderlyAssisted, req.user.id, selfie_data || null, id_document_data || null]
+      [status, workflowResult.faceMatchScore, workflowResult.documentAuthenticityScore, workflowResult.sanctions.flagged, workflowResult.sanctions.matchName, newClientId]
     );
 
     await pool.query(
@@ -170,6 +193,7 @@ exports.getClients = async (req, res) => {
       SELECT c.id, c.user_id, c.id_number, c.first_name, c.last_name, c.date_of_birth,
              c.gender, c.phone, c.district, c.status, c.rejection_reason, c.is_active,
              c.elderly_assisted, c.registered_by, c.created_at, c.kyc_submitted_at,
+             c.sms_opt_in, c.email_opt_in,
              (c.selfie_data IS NOT NULL) AS has_selfie,
              (c.id_document_data IS NOT NULL) AS has_id_document,
              u.name as agent_name, u.phone as agent_phone, u.email as agent_email

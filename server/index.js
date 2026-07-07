@@ -7,14 +7,23 @@ const compression = require('compression');
 require('dotenv').config();
 
 const db = require('./config/db');
+const ipBlock = require('./middleware/ipBlock');
 const authRoutes = require('./routes/auth');
 const registrationRoutes = require('./routes/registration');
 const auditRoutes = require('./routes/audit');
 const agentRoutes = require('./routes/agents');
 const clientRoutes = require('./routes/client');
 const analyticsRoutes = require('./routes/analytics');
+const securityRoutes = require('./routes/security');
+const automationRoutes = require('./routes/automation');
+const communicationRoutes = require('./routes/communication');
 
 const app = express();
+
+// Render (and most PaaS providers) sit behind a reverse proxy — trust the
+// X-Forwarded-For header so req.ip reflects the real client IP, which the
+// login-attempt monitoring and IP blocklist below both depend on.
+app.set('trust proxy', 1);
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -39,6 +48,7 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '8mb' }));
+app.use(ipBlock);
 
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 const loginLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { message: 'Too many login attempts, please try again in 15 minutes' } });
@@ -51,6 +61,9 @@ app.use('/api', auditRoutes);
 app.use('/api', agentRoutes);
 app.use('/api', clientRoutes);
 app.use('/api', analyticsRoutes);
+app.use('/api', securityRoutes);
+app.use('/api', automationRoutes);
+app.use('/api', communicationRoutes);
 
 app.get('/', (req, res) => res.json({ message: 'ServTech Rwanda API is running' }));
 

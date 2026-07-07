@@ -48,6 +48,13 @@ CREATE TABLE clients (
   selfie_data TEXT,
   id_document_data TEXT,
   kyc_submitted_at TIMESTAMP DEFAULT NOW(),
+  -- Mock KYC screening layers (see server/utils/mockScreening.js for what's simulated)
+  face_match_score INTEGER,
+  document_authenticity_score INTEGER,
+  sanctions_flag BOOLEAN DEFAULT false,
+  sanctions_match_name VARCHAR(200),
+  sms_opt_in BOOLEAN DEFAULT true,
+  email_opt_in BOOLEAN DEFAULT true,
   registered_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -71,25 +78,82 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- ── Row Level Security ────────────────────────────────────────────────────
--- This project is hosted on Supabase, which auto-exposes every public-schema
--- table over a REST API to the anon/authenticated keys unless RLS blocks it.
--- The backend (server/config/db.js) connects directly as the `postgres`
--- superuser via DATABASE_URL, so it bypasses RLS entirely and is unaffected —
--- this only closes off Supabase's auto-generated API, which this app doesn't use.
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE id_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE betting_activity ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+-- ── Security & Access Control ─────────────────────────────────────────────
+CREATE TABLE login_attempts (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(100),
+  ip_address VARCHAR(64),
+  success BOOLEAN NOT NULL,
+  reason VARCHAR(100),
+  created_at TIMESTAMP DEFAULT NOW()
+);
 
-CREATE POLICY service_role_only ON users
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY service_role_only ON id_records
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY service_role_only ON clients
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY service_role_only ON betting_activity
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
-CREATE POLICY service_role_only ON audit_logs
-  FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
+CREATE TABLE blocked_ips (
+  id SERIAL PRIMARY KEY,
+  ip_address VARCHAR(64) UNIQUE NOT NULL,
+  reason VARCHAR(255),
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ── Workflow Automation ────────────────────────────────────────────────────
+CREATE TABLE automation_rules (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(50) UNIQUE NOT NULL,
+  name VARCHAR(150) NOT NULL,
+  description TEXT,
+  trigger_event VARCHAR(100) NOT NULL,
+  action VARCHAR(100) NOT NULL,
+  enabled BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE workflow_execution_log (
+  id SERIAL PRIMARY KEY,
+  rule_code VARCHAR(50),
+  rule_name VARCHAR(150),
+  client_id INTEGER REFERENCES clients(id),
+  result_summary TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ── Client Communication ───────────────────────────────────────────────────
+CREATE TABLE message_templates (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  channel VARCHAR(10) NOT NULL CHECK (channel IN ('email', 'sms')),
+  subject VARCHAR(200),
+  body TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE message_log (
+  id SERIAL PRIMARY KEY,
+  client_id INTEGER REFERENCES clients(id),
+  sent_by INTEGER REFERENCES users(id),
+  channel VARCHAR(10) NOT NULL CHECK (channel IN ('email', 'sms')),
+  template_id INTEGER REFERENCES message_templates(id),
+  recipient VARCHAR(150) NOT NULL,
+  subject VARCHAR(200),
+  body TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Seed default automation rules
+INSERT INTO automation_rules (code, name, description, trigger_event, action, enabled, sort_order) VALUES
+  ('sanctions_escalate',  'Escalate sanctions/PEP matches',        'If a client name matches the sanctions/PEP watchlist, automatically flag the application for manual admin review instead of auto-verifying.', 'client_registered', 'flag_for_review', true, 1),
+  ('face_match_flag',     'Flag low selfie/ID match confidence',   'If the selfie-to-ID face match score falls below 60%, flag the application for manual review rather than auto-approving.',                    'client_registered', 'flag_for_review', true, 2),
+  ('doc_authenticity_flag','Flag suspect ID documents',            'If the ID document authenticity check score falls below 50%, flag the application for manual review.',                                       'client_registered', 'flag_for_review', true, 3),
+  ('registry_auto_verify','Auto-verify on registry match',         'If the ID number is found in the national registry and no other rule has flagged the application, verify it automatically without waiting on an admin.', 'client_registered', 'auto_verify', true, 4),
+  ('rejection_notify',   'Notify client on rejection',             'When an admin rejects a client''s KYC, automatically send them an email with the rejection reason and resubmission instructions.',                  'kyc_reviewed', 'send_notification', true, 5),
+  ('approval_notify',    'Notify client on approval',              'When a client is verified, automatically send a welcome/approval notification.',                                                                'kyc_reviewed', 'send_notification', true, 6);
+
+-- Seed default message templates
+INSERT INTO message_templates (name, channel, subject, body) VALUES
+  ('KYC Approved',        'email', 'Your ServTech Rwanda account is verified',  'Hello {first_name}, your identity verification has been approved. You can now log in and use your account.'),
+  ('KYC Rejected',        'email', 'Action needed on your ServTech Rwanda application', 'Hello {first_name}, we were unable to verify your application. Reason: {rejection_reason}. Please log in and resubmit your documents.'),
+  ('Welcome SMS',         'sms',   NULL, 'Welcome to ServTech Rwanda, {first_name}! Your registration was received and is being reviewed.'),
+  ('Verification Reminder','sms',  NULL, 'Hi {first_name}, your ServTech Rwanda verification is still pending. Please check your email for any required action.');

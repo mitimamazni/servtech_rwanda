@@ -2,6 +2,8 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { sendClientWelcomeEmail } = require('../utils/email');
 const { validateImageDataUrl } = require('../utils/kyc');
+const { runRegistrationWorkflow, runReviewWorkflow } = require('../utils/workflowEngine');
+const { sendToClient } = require('../utils/notify');
 const { verifyChallenge } = require('../utils/captcha');
 
 const MIN_AGE = 18;
@@ -21,6 +23,8 @@ const SAFE_CLIENT_COLUMNS = `
   id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone,
   district, status, rejection_reason, is_active, elderly_assisted, registered_by,
   created_at, kyc_submitted_at,
+  face_match_score, document_authenticity_score, sanctions_flag, sanctions_match_name,
+  sms_opt_in, email_opt_in,
   (selfie_data IS NOT NULL) AS has_selfie,
   (id_document_data IS NOT NULL) AS has_id_document
 `;
@@ -119,7 +123,7 @@ exports.selfRegister = async (req, res) => {
 
     // Verify against registry
     const idCheck = await pool.query('SELECT id FROM id_records WHERE id_number = $1 AND valid = true', [id_number]);
-    const status = idCheck.rows.length > 0 ? 'verified' : 'pending';
+    const registryMatch = idCheck.rows.length > 0;
 
     // Generate password (looped to guarantee uniqueness against existing hashes is not
     // meaningful for bcrypt, so instead we simply guarantee the raw password itself is
@@ -134,11 +138,38 @@ exports.selfRegister = async (req, res) => {
     );
     const userId = userResult.rows[0].id;
 
-    // Create client record
-    const clientResult = await pool.query(
+    // Create client record (starts pending — the workflow engine below decides the final status)
+    const insertResult = await pool.query(
       `INSERT INTO clients (user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by, selfie_data, id_document_data, kyc_submitted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()) RETURNING id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by, created_at`,
-      [userId, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, userId, selfie_data, id_document_data || null]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, NOW()) RETURNING id`,
+      [userId, id_number, first_name, last_name, date_of_birth, gender, phone, district, userId, selfie_data, id_document_data || null]
+    );
+    const newClientId = insertResult.rows[0].id;
+
+    // Run the configurable automation rules (mock face-match / document-authenticity /
+    // sanctions screening + registry auto-verify) to decide the final status.
+    const workflowResult = await runRegistrationWorkflow({
+      clientId: newClientId,
+      firstName: first_name,
+      lastName: last_name,
+      selfieData: selfie_data,
+      idDocumentData: id_document_data,
+      registryMatch,
+    });
+
+    const clientResult = await pool.query(
+      `UPDATE clients SET status = $1, face_match_score = $2, document_authenticity_score = $3,
+              sanctions_flag = $4, sanctions_match_name = $5
+       WHERE id = $6
+       RETURNING id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by, created_at`,
+      [
+        workflowResult.status,
+        workflowResult.faceMatchScore,
+        workflowResult.documentAuthenticityScore,
+        workflowResult.sanctions.flagged,
+        workflowResult.sanctions.matchName,
+        newClientId,
+      ]
     );
 
     await pool.query(
@@ -289,6 +320,21 @@ exports.resubmitKyc = async (req, res) => {
       });
     }
 
+    // Re-check the national registry and re-run the same automation rules used
+    // at initial registration, so a resubmission gets a fresh, consistent decision
+    // rather than always parking back in manual review.
+    const idCheck = await pool.query('SELECT id FROM id_records WHERE id_number = $1 AND valid = true', [client.id_number]);
+    const registryMatch = idCheck.rows.length > 0;
+
+    const workflowResult = await runRegistrationWorkflow({
+      clientId: client.id,
+      firstName: first_name || client.first_name,
+      lastName: last_name || client.last_name,
+      selfieData: selfie_data,
+      idDocumentData: id_document_data || null,
+      registryMatch,
+    });
+
     const result = await pool.query(
       `UPDATE clients SET
          first_name = COALESCE($1, first_name),
@@ -299,12 +345,20 @@ exports.resubmitKyc = async (req, res) => {
          district = COALESCE($6, district),
          selfie_data = $7,
          id_document_data = COALESCE($8, id_document_data),
-         status = 'pending',
+         status = $9,
          rejection_reason = NULL,
+         face_match_score = $10,
+         document_authenticity_score = $11,
+         sanctions_flag = $12,
+         sanctions_match_name = $13,
          kyc_submitted_at = NOW()
-       WHERE id = $9
+       WHERE id = $14
        RETURNING id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, created_at`,
-      [first_name, last_name, date_of_birth, gender, phone, district, selfie_data, id_document_data, client.id]
+      [
+        first_name, last_name, date_of_birth, gender, phone, district, selfie_data, id_document_data,
+        workflowResult.status, workflowResult.faceMatchScore, workflowResult.documentAuthenticityScore,
+        workflowResult.sanctions.flagged, workflowResult.sanctions.matchName, client.id,
+      ]
     );
 
     await pool.query(
@@ -349,7 +403,7 @@ exports.getClientDocuments = async (req, res) => {
 // Admin or owning agent: update editable client details (CRUD - update)
 exports.updateClient = async (req, res) => {
   const { clientId } = req.params;
-  const { first_name, last_name, date_of_birth, gender, phone, district } = req.body;
+  const { first_name, last_name, date_of_birth, gender, phone, district, sms_opt_in, email_opt_in } = req.body;
 
   try {
     const { error, message, client } = await findClientForAction(clientId, req.user);
@@ -369,9 +423,11 @@ exports.updateClient = async (req, res) => {
          date_of_birth = COALESCE($3, date_of_birth),
          gender = COALESCE($4, gender),
          phone = COALESCE($5, phone),
-         district = COALESCE($6, district)
-       WHERE id = $7 RETURNING ${SAFE_CLIENT_COLUMNS}`,
-      [first_name, last_name, date_of_birth, gender, phone, district, clientId]
+         district = COALESCE($6, district),
+         sms_opt_in = COALESCE($7, sms_opt_in),
+         email_opt_in = COALESCE($8, email_opt_in)
+       WHERE id = $9 RETURNING ${SAFE_CLIENT_COLUMNS}`,
+      [first_name, last_name, date_of_birth, gender, phone, district, sms_opt_in, email_opt_in, clientId]
     );
 
     await pool.query(
@@ -401,6 +457,17 @@ exports.validateClient = async (req, res) => {
       [req.user.id, 'VALIDATE_CLIENT', `Validated client ${result.rows[0].id_number} (id ${clientId})`]
     );
 
+    // Configurable automation: if the "notify on approval" rule is enabled,
+    // send the client an email using the KYC Approved template.
+    const workflow = await runReviewWorkflow({ clientId, outcome: 'verified' });
+    if (workflow.notify) {
+      const template = await pool.query(`SELECT id, subject, body FROM message_templates WHERE name = 'KYC Approved' LIMIT 1`);
+      if (template.rows.length > 0) {
+        const t = template.rows[0];
+        await sendToClient({ clientId, channel: 'email', subject: t.subject, body: t.body, templateId: t.id, sentBy: req.user.id });
+      }
+    }
+
     res.json({ message: 'Client verified', client: result.rows[0] });
   } catch (err) {
     console.error(err);
@@ -423,6 +490,17 @@ exports.rejectClient = async (req, res) => {
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
       [req.user.id, 'REJECT_CLIENT', `Rejected client ${result.rows[0].id_number} (id ${clientId})${reason ? ` - reason: ${reason}` : ''}`]
     );
+
+    // Configurable automation: if the "notify on rejection" rule is enabled,
+    // send the client an email with the reason and resubmission instructions.
+    const workflow = await runReviewWorkflow({ clientId, outcome: 'rejected' });
+    if (workflow.notify) {
+      const template = await pool.query(`SELECT id, subject, body FROM message_templates WHERE name = 'KYC Rejected' LIMIT 1`);
+      if (template.rows.length > 0) {
+        const t = template.rows[0];
+        await sendToClient({ clientId, channel: 'email', subject: t.subject, body: t.body, templateId: t.id, sentBy: req.user.id });
+      }
+    }
 
     res.json({ message: 'Client rejected', client: result.rows[0] });
   } catch (err) {
