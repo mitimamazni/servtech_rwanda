@@ -51,7 +51,13 @@ app.use(express.json({ limit: '8mb' }));
 app.use(ipBlock);
 
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
-const loginLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { message: 'Too many login attempts, please try again in 15 minutes' } });
+const loginLimiter  = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  skipSuccessfulRequests: true, // only failed logins count — a successful login on one account
+                                 // shouldn't eat into the quota for every other account on the same IP
+  message: { message: 'Too many failed login attempts, please try again in 15 minutes' },
+});
 
 app.use(globalLimiter);
 app.use('/api/auth/login', loginLimiter);
