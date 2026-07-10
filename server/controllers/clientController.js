@@ -31,11 +31,18 @@ const SAFE_CLIENT_COLUMNS = `
 
 // Client self-registration
 exports.selfRegister = async (req, res) => {
-  const { id_number, first_name, last_name, date_of_birth, gender, phone, district, email, selfie_data, id_document_data, captcha_token, captcha_answer } = req.body;
+  const { id_number, first_name, last_name, date_of_birth, gender, phone, district, email, selfie_data, id_document_data, captcha_token, captcha_answer, terms_accepted, terms_version } = req.body;
 
   try {
     const captchaError = verifyChallenge(captcha_token, captcha_answer);
     if (captchaError) return res.status(400).json({ message: captchaError });
+
+    // Server-side gate on Terms & Conditions acceptance — the frontend
+    // disables the submit button until this is checked, but that alone is
+    // trivially bypassable, so it's enforced here too.
+    if (!terms_accepted) {
+      return res.status(400).json({ message: 'You must agree to the Terms & Conditions to register.' });
+    }
 
     // Duplicate client check — a previously *rejected* attempt (e.g. the person was
     // under 18 at the time) should not permanently block a legitimate later attempt,
@@ -156,9 +163,9 @@ exports.selfRegister = async (req, res) => {
 
     // Create client record (starts pending — the workflow engine below decides the final status)
     const insertResult = await pool.query(
-      `INSERT INTO clients (user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by, selfie_data, id_document_data, kyc_submitted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, NOW()) RETURNING id`,
-      [userId, id_number, first_name, last_name, date_of_birth, gender, phone, district, userId, selfie_data, id_document_data || null]
+      `INSERT INTO clients (user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by, selfie_data, id_document_data, kyc_submitted_at, terms_accepted_at, terms_version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, NOW(), NOW(), $12) RETURNING id`,
+      [userId, id_number, first_name, last_name, date_of_birth, gender, phone, district, userId, selfie_data, id_document_data || null, terms_version || null]
     );
     const newClientId = insertResult.rows[0].id;
 
@@ -190,7 +197,7 @@ exports.selfRegister = async (req, res) => {
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [userId, 'SELF_REGISTER', `Client self-registered: ${id_number} - status: ${status}`]
+      [userId, 'SELF_REGISTER', `Client self-registered: ${id_number} - status: ${clientResult.rows[0].status}`]
     );
 
     // Send welcome email

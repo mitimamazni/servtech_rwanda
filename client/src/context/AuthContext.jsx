@@ -29,8 +29,8 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
-  const login = async (email, password) => {
-    const res = await axios.post('/auth/login', { email, password });
+  const login = async (email, password, captcha = {}) => {
+    const res = await axios.post('/auth/login', { email, password, ...captcha });
     if (res.data.requires2FA) {
       return { requires2FA: true, pendingToken: res.data.pendingToken };
     }

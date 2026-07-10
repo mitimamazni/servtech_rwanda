@@ -14,7 +14,7 @@ export default function Captcha({ onChange }) {
     setLoading(true);
     setAnswer('');
     onChange({ captcha_token: null, captcha_answer: '' });
-    axios.get('/captcha')
+    axios.get('/auth/captcha')
       .then(r => setChallenge(r.data))
       .finally(() => setLoading(false));
   };

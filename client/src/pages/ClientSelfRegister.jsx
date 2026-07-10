@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
@@ -6,8 +6,10 @@ import { extractIdData } from '../utils/ocr';
 import Logo from '../components/Logo';
 import SelfieCapture from '../components/SelfieCapture';
 import Captcha from '../components/Captcha';
-import { Upload, CheckCircle, AlertCircle, Loader, ArrowLeft, ArrowRight, User, Phone } from 'lucide-react';
+import TermsModal, { TERMS_VERSION } from '../components/TermsModal';
+import { Upload, CheckCircle, AlertCircle, Loader, ArrowLeft, ArrowRight, User, Phone, FileText } from 'lucide-react';
 import { yearMismatch } from '../utils/idValidation';
+import { loadRegistrationDraft, saveRegistrationDraft, clearRegistrationDraft } from '../utils/registrationDraft';
 
 const STEPS = ['Upload ID', 'Your Details', 'Contact Info', 'Selfie', 'Confirm'];
 const DISTRICTS = ['Bugesera','Burera','Gakenke','Gasabo','Gatsibo','Gicumbi','Gisagara','Huye','Kamonyi','Karongi','Kayonza','Kicukiro','Kirehe','Muhanga','Musanze','Ngoma','Ngororero','Nyabihu','Nyagatare','Nyamasheke','Nyanza','Nyarugenge','Nyaruguru','Rubavu','Ruhango','Rulindo','Rusizi','Rutsiro','Rwamagana'];
@@ -27,6 +29,9 @@ export default function ClientSelfRegister() {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [verifyingId, setVerifyingId] = useState(false);
   const [tooManyAttempts, setTooManyAttempts] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const [form, setForm] = useState({
     id_number: '', first_name: '', last_name: '',
@@ -36,6 +41,36 @@ export default function ClientSelfRegister() {
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
   const dobMismatch = yearMismatch(form.id_number, form.date_of_birth);
+
+  // Restore an in-progress draft (if any) once, on first mount.
+  useEffect(() => {
+    const draft = loadRegistrationDraft();
+    if (draft) {
+      setForm(prev => ({ ...prev, ...draft.form }));
+      setStep(draft.step);
+      setDraftRestored(true);
+      toast('Continuing your saved registration draft', { icon: '📝' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autosave text-field progress (not photos) whenever it changes.
+  useEffect(() => {
+    saveRegistrationDraft(step, form);
+  }, [step, form.id_number, form.first_name, form.last_name, form.date_of_birth, form.gender, form.phone, form.district, form.email]);
+
+  const startOver = () => {
+    clearRegistrationDraft();
+    setForm({
+      id_number: '', first_name: '', last_name: '',
+      date_of_birth: '', gender: '', phone: '', district: '', email: '',
+      selfie_data: null, id_document_data: null,
+    });
+    setStep(0);
+    setDraftRestored(false);
+    setImagePreview(null);
+    toast('Starting fresh', { icon: '🔄' });
+  };
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
@@ -140,7 +175,12 @@ export default function ClientSelfRegister() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await axios.post('/client/register', { ...form, ...captcha });
+      await axios.post('/client/register', {
+        ...form, ...captcha,
+        terms_accepted: termsAccepted,
+        terms_version: TERMS_VERSION,
+      });
+      clearRegistrationDraft();
       toast.success('Registration successful! Check your email for login details.');
       navigate('/login');
     } catch (err) {
@@ -198,7 +238,7 @@ export default function ClientSelfRegister() {
       <div className="max-w-xl mx-auto">
 
         <div className="flex items-center gap-3 mb-8">
-          <Link to="/login" className="text-gray-400 hover:text-gray-600"><ArrowLeft size={20} /></Link>
+          <Link to="/" className="text-gray-400 hover:text-gray-600"><ArrowLeft size={20} /></Link>
           <Logo size={32} showText={true} textClass="text-base" />
           <span className="text-gray-200">|</span>
           <div>
@@ -206,6 +246,13 @@ export default function ClientSelfRegister() {
             <p className="text-gray-500 text-sm">Step {step + 1} of {STEPS.length} - {STEPS[step]}</p>
           </div>
         </div>
+
+        {draftRestored && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-sm text-blue-700 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2"><FileText size={15} /> Picking up where you left off</span>
+            <button onClick={startOver} className="text-blue-700 underline text-xs shrink-0">Start over</button>
+          </div>
+        )}
 
         {attempts > 0 && (
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-700 flex items-center gap-2">
@@ -414,13 +461,30 @@ export default function ClientSelfRegister() {
                 After registration, your login credentials will be sent to <strong>{form.email}</strong>.
               </div>
 
+              <label className="flex items-start gap-2.5 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={e => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span>
+                  I have read and agree to the{' '}
+                  <button type="button" onClick={() => setTermsModalOpen(true)} className="text-primary-600 underline">
+                    Terms & Conditions
+                  </button>.
+                </span>
+              </label>
+
               <Captcha onChange={setCaptcha} />
+
+              <TermsModal open={termsModalOpen} onClose={() => setTermsModalOpen(false)} />
             </div>
           )}
 
           {/* Navigation */}
           <div className="flex justify-between mt-6">
-            <button onClick={() => step === 0 ? navigate('/login') : setStep(s => s - 1)}
+            <button onClick={() => step === 0 ? navigate('/') : setStep(s => s - 1)}
               className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
               <ArrowLeft size={14} /> Back
             </button>
@@ -433,7 +497,7 @@ export default function ClientSelfRegister() {
                 Next <ArrowRight size={14} />
               </button>
             ) : (
-              <button onClick={handleSubmit} disabled={submitting || !captcha.captcha_answer}
+              <button onClick={handleSubmit} disabled={submitting || !captcha.captcha_answer || !termsAccepted}
                 className="bg-green-600 hover:bg-green-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-60">
                 {submitting ? <Loader size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                 Submit Registration

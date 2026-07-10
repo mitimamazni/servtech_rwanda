@@ -56,7 +56,9 @@ CREATE TABLE clients (
   sms_opt_in BOOLEAN DEFAULT true,
   email_opt_in BOOLEAN DEFAULT true,
   registered_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT NOW(),
+  terms_accepted_at TIMESTAMP,
+  terms_version VARCHAR(20)
 );
 
 -- Betting activity (mock data for demo)

@@ -3,19 +3,26 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
 const qrcode = require('qrcode');
+const { verifyChallenge } = require('../utils/captcha');
 require('dotenv').config();
 
 const issueSessionToken = (user) =>
   jwt.sign({ id: user.id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '8h' });
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, captcha_token, captcha_answer } = req.body;
   const ip = req.ip;
 
   const logAttempt = (success, reason) =>
     pool.query('INSERT INTO login_attempts (email, ip_address, success, reason) VALUES ($1, $2, $3, $4)', [email, ip, success, reason]);
 
   try {
+    const captchaError = verifyChallenge(captcha_token, captcha_answer);
+    if (captchaError) {
+      await logAttempt(false, 'captcha_failed');
+      return res.status(400).json({ message: captchaError });
+    }
+
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {

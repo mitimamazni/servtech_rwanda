@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import Logo from '../components/Logo';
+import Captcha from '../components/Captcha';
 import { ShieldCheck, ArrowLeft } from 'lucide-react';
 
 export default function Login() {
@@ -12,6 +13,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [pendingToken, setPendingToken] = useState(null);
   const [code, setCode] = useState('');
+  const [captcha, setCaptcha] = useState({ captcha_token: null, captcha_answer: '' });
+  // Bumping this remounts <Captcha>, which fetches a fresh challenge — used
+  // after a failed attempt since a captcha token is single-use/short-lived.
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const goToDashboard = (user) => {
     toast.success(`Welcome back, ${user.name}`);
@@ -24,7 +29,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await login(form.email, form.password);
+      const result = await login(form.email, form.password, captcha);
       if (result.requires2FA) {
         setPendingToken(result.pendingToken);
       } else {
@@ -32,6 +37,9 @@ export default function Login() {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed');
+      // A used/expired/wrong captcha token can't be resubmitted — force a fresh challenge.
+      setCaptcha({ captcha_token: null, captcha_answer: '' });
+      setCaptchaKey(k => k + 1);
     } finally {
       setLoading(false);
     }
@@ -106,7 +114,8 @@ export default function Login() {
               className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="••••••••" />
           </div>
-          <button type="submit" disabled={loading}
+          <Captcha key={captchaKey} onChange={setCaptcha} />
+          <button type="submit" disabled={loading || !captcha.captcha_answer}
             className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors disabled:opacity-60">
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
