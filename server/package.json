@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "ServTech Rwanda API",
   "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
@@ -18,7 +21,6 @@
   "helmet": "^7.0.0",
   "jsonwebtoken": "^9.0.0",
   "morgan": "^1.10.0",
-  "nodemailer": "^6.9.13",
   "pg": "^8.11.0",
   "qrcode": "^1.5.4",
   "speakeasy": "^2.0.0"

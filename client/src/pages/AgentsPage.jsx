@@ -167,8 +167,8 @@ export default function AgentsPage() {
                   className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-2 disabled:opacity-60">
                   {submitting ? <><Loader size={14} className="animate-spin" /> Creating...</> : <><Plus size={14} /> Create Agent</>}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)}
-                  className="text-sm text-gray-500 hover:text-gray-700 border border-gray-200 px-5 py-2.5 rounded-lg">
+                <button type="button" onClick={() => setShowForm(false)} disabled={submitting}
+                  className="text-sm text-gray-500 hover:text-gray-700 border border-gray-200 px-5 py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
                   Cancel
                 </button>
               </div>

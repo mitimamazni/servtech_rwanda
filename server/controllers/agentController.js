@@ -205,7 +205,7 @@ exports.createAgent = async (req, res) => {
     );
 
     // Send welcome email with credentials. Regardless of whether the email
-    // actually goes out (e.g. RESEND_API_KEY missing/misconfigured, provider
+    // actually goes out (e.g. BREVO_API_KEY missing/misconfigured, provider
     // error), the raw password is always returned in the API response below
     // so the admin can see and hand over the credentials directly.
     const emailResult = await sendAgentWelcomeEmail({ name, email, password: rawPassword });

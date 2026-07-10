@@ -274,6 +274,9 @@ export default function Communications() {
                     </div>
                     {m.subject && <p className="text-xs text-gray-600 mt-1 font-medium">{m.subject}</p>}
                     <p className="text-xs text-gray-400 mt-0.5">{m.body}</p>
+                    {m.status === 'failed' && m.error_detail && (
+                      <p className="text-xs text-red-500 mt-1">⚠ {m.error_detail}</p>
+                    )}
                   </div>
                 ))}
               </div>

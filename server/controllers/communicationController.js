@@ -60,7 +60,7 @@ exports.getMessageLog = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const result = await pool.query(
-      `SELECT m.id, m.channel, m.recipient, m.subject, m.body, m.status, m.created_at,
+      `SELECT m.id, m.channel, m.recipient, m.subject, m.body, m.status, m.error_detail, m.created_at,
               c.first_name, c.last_name, c.id_number, u.name as sent_by_name
        FROM message_log m
        LEFT JOIN clients c ON m.client_id = c.id

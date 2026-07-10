@@ -1,60 +1,86 @@
-// Email sender using Nodemailer with Gmail.
+// Email sender using Brevo's Transactional Email API (HTTPS), not raw SMTP.
+//
+// Why: Render's free tier blocks outbound traffic on SMTP ports (25, 465,
+// 587), so any SMTP-based sender (e.g. Gmail via nodemailer) just hangs and
+// times out from a Render free-tier service. Brevo's API sends over regular
+// HTTPS (port 443), which isn't blocked.
 //
 // Setup:
-//   1. Enable 2-Step Verification on the sending Gmail account.
-//   2. Go to Google Account → Security → App Passwords.
-//   3. Generate an App Password for "Mail" and copy the 16-character code.
-//   4. Add these to your .env:
-//        GMAIL_USER=your-account@gmail.com
-//        GMAIL_APP_PASSWORD=your-16-char-app-password
+//   1. Create a free Brevo account: https://www.brevo.com (300 emails/day,
+//      permanent free tier — no domain required).
+//   2. Settings → Senders, Domains, IPs → Senders → Add a sender. Use your
+//      existing Gmail address (e.g. servtech.250@gmail.com) as the sender —
+//      Brevo verifies it by emailing a 6-digit code to that address, no
+//      domain purchase needed. (Domain authentication is optional and only
+//      improves deliverability; a plain Gmail sender still sends fine.)
+//   3. Settings → SMTP & API → API Keys → Generate a new API key.
+//   4. Add these to your .env / Render environment:
+//        BREVO_API_KEY=your-api-key
+//        BREVO_SENDER_EMAIL=servtech.250@gmail.com   (the address you verified)
+//        BREVO_SENDER_NAME=ServTech Rwanda            (optional, defaults below)
 //
-// If GMAIL_USER or GMAIL_APP_PASSWORD is not set, every send*Email() function
-// below logs a warning and returns { success: false, skipped: true } instead
-// of throwing — the app keeps working (agents/clients still get created,
-// passwords are still returned in the API response), it just means nobody
-// receives the email until both vars are configured.
+// If BREVO_API_KEY or BREVO_SENDER_EMAIL is not set, every send*Email()
+// function below logs a warning and returns { success: false, skipped: true }
+// instead of throwing — the app keeps working (agents/clients still get
+// created, passwords are still returned in the API response), it just means
+// nobody receives the email until both vars are configured.
 
-const nodemailer = require('nodemailer');
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL;
+const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || 'ServTech Rwanda';
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-
-if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-  console.warn('[email] GMAIL_USER or GMAIL_APP_PASSWORD is not set — emails will be skipped.');
-}
-
-let transporter = null;
-function getTransporter() {
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) return null;
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
-    });
-  }
-  return transporter;
+if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) {
+  console.warn('[email] BREVO_API_KEY or BREVO_SENDER_EMAIL is not set — emails will be skipped.');
 }
 
 // Shared send helper — every exported function below builds { subject, html }
-// and hands it here, so the Gmail-specific plumbing (and the skip-if-not-configured
+// and hands it here, so the Brevo-specific plumbing (and the skip-if-not-configured
 // behavior) only lives in one place.
 async function send({ to, subject, html }) {
-  const t = getTransporter();
-  if (!t) {
-    console.warn(`[email] Skipped sending — GMAIL_USER/GMAIL_APP_PASSWORD not configured. Would have emailed "${subject}" to ${to}.`);
-    return { success: false, skipped: true };
+  if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) {
+    console.warn(`[email] Skipped sending — BREVO_API_KEY/BREVO_SENDER_EMAIL not configured. Would have emailed "${subject}" to ${to}.`);
+    return { success: false, skipped: true, reason: 'Email is not configured on the server (BREVO_API_KEY/BREVO_SENDER_EMAIL missing)' };
   }
   try {
-    await t.sendMail({
-      from: `"ServTech Rwanda" <${GMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
+    // Fail fast rather than hang — a stuck request here shouldn't ever again
+    // hold up an account-creation response the way the old SMTP timeout did.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
+    let response;
+    try {
+      response = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: {
+          'api-key': BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: BREVO_SENDER_NAME, email: BREVO_SENDER_EMAIL },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const reason = body.message || `Brevo rejected the send (HTTP ${response.status})`;
+      console.error('[email] Failed to send:', reason);
+      return { success: false, reason };
+    }
+
     return { success: true };
   } catch (err) {
+    const reason = err.name === 'AbortError' ? 'Timed out contacting Brevo' : (err.message || 'Email provider request failed');
     console.error('[email] Failed to send:', err);
-    return { success: false };
+    return { success: false, reason };
   }
 }
 

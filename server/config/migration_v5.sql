@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS message_log (
   subject VARCHAR(200),
   body TEXT NOT NULL,
   status VARCHAR(20) NOT NULL,                -- 'sent' | 'failed' | 'skipped_opt_out'
+  error_detail VARCHAR(255),                  -- why it failed, e.g. 'No email on file for this client'
   created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -41,27 +41,34 @@ const sendToClient = async ({ clientId, channel, subject, body, templateId = nul
   const recipient = channel === 'sms' ? (client.phone || 'unknown') : (client.email || 'unknown');
 
   let status;
+  let errorDetail = null;
   if (!optedIn) {
     status = 'skipped_opt_out';
   } else if (channel === 'sms') {
     const result = await mockSendSms(client.phone, resolvedBody);
     status = result.success ? 'sent' : 'failed';
+    if (!result.success) errorDetail = result.reason || 'SMS send failed';
   } else {
     if (!client.email) {
+      // Agent-registered clients (the common case) never get a login/email
+      // account created for them, so there's simply no address to send to —
+      // this is not a misconfiguration, it's expected for most client records.
       status = 'failed';
+      errorDetail = 'No email on file for this client (only self-registered clients have one)';
     } else {
       const result = await sendRawEmail(client.email, resolvedSubject, resolvedBody);
       status = result?.success ? 'sent' : 'failed';
+      if (!result?.success) errorDetail = result?.reason || 'Email send failed';
     }
   }
 
   await pool.query(
-    `INSERT INTO message_log (client_id, sent_by, channel, template_id, recipient, subject, body, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [clientId, sentBy, channel, templateId, recipient, resolvedSubject, resolvedBody, status]
+    `INSERT INTO message_log (client_id, sent_by, channel, template_id, recipient, subject, body, status, error_detail)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [clientId, sentBy, channel, templateId, recipient, resolvedSubject, resolvedBody, status, errorDetail]
   );
 
-  return { status, recipient };
+  return { status, recipient, errorDetail };
 };
 
 module.exports = { sendToClient, resolvePlaceholders };

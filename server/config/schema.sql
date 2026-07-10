@@ -139,6 +139,7 @@ CREATE TABLE message_log (
   subject VARCHAR(200),
   body TEXT NOT NULL,
   status VARCHAR(20) NOT NULL,
+  error_detail VARCHAR(255),
   created_at TIMESTAMP DEFAULT NOW()
 );
 

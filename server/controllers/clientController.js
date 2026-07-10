@@ -261,6 +261,7 @@ exports.getClientActivity = async (req, res) => {
       `SELECT c.id, c.user_id, c.id_number, c.first_name, c.last_name, c.date_of_birth,
               c.gender, c.phone, c.district, c.status, c.rejection_reason, c.is_active,
               c.elderly_assisted, c.registered_by, c.created_at, c.kyc_submitted_at,
+              c.sms_opt_in, c.email_opt_in,
               (c.selfie_data IS NOT NULL) AS has_selfie,
               (c.id_document_data IS NOT NULL) AS has_id_document,
               u.email, u2.name as agent_name, u2.phone as agent_phone, u2.id as agent_id

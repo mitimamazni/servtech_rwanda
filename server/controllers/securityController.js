@@ -79,12 +79,24 @@ exports.getBlockedIps = async (req, res) => {
 exports.blockIp = async (req, res) => {
   const { ip_address, reason } = req.body;
   if (!ip_address) return res.status(400).json({ message: 'IP address is required' });
+
+  const trimmed = ip_address.trim();
+
+  // The block applies to every request from that IP, regardless of account —
+  // so blocking your own current IP locks out you (and anyone else on the
+  // same network/NAT) with no way to undo it from the UI. Refuse it outright.
+  if (trimmed === req.ip) {
+    return res.status(400).json({
+      message: "That's the IP address you're currently connecting from. Blocking it would lock you (and anyone sharing your network) out immediately, with no way to undo it from this panel.",
+    });
+  }
+
   try {
     const result = await pool.query(
       `INSERT INTO blocked_ips (ip_address, reason, created_by) VALUES ($1, $2, $3)
        ON CONFLICT (ip_address) DO UPDATE SET reason = $2
        RETURNING id, ip_address, reason, created_at`,
-      [ip_address.trim(), reason || null, req.user.id]
+      [trimmed, reason || null, req.user.id]
     );
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',

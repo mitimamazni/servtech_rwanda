@@ -13,7 +13,16 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       axios.get('/auth/me')
         .then(res => setUser(res.data))
-        .catch(() => logout())
+        .catch((err) => {
+          // Only a genuinely invalid/expired token should force a logout.
+          // Anything else (rate limiting, a blocked-IP 403, a transient
+          // network/500 error) shouldn't silently wipe a valid session —
+          // that was causing "successful login, then instantly bounced
+          // back to the login page" whenever /auth/me hit a non-auth error.
+          if (err.response?.status === 401) {
+            logout();
+          }
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
