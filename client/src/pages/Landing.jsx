@@ -5,7 +5,7 @@ import { ShieldCheck, UserPlus, Users, Clock } from 'lucide-react';
 export default function Landing() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="border-b border-gray-100 bg-white">
+      <nav className="border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo size={36} showText={false} />
@@ -53,7 +53,7 @@ export default function Landing() {
       </section>
 
       <footer className="text-center text-xs text-gray-400 pb-10">
-        <span className="text-primary-600 font-medium">Serv</span>Tech Rwanda — Client Registration System
+        <span className="text-primary-600 font-medium">Serv</span>Tech Rwanda: Client Registration System
       </footer>
     </div>
   );

@@ -211,7 +211,7 @@ export default function ManualClientRegister() {
           {step === 3 && (
             <div className="space-y-4">
               <h2 className="font-medium text-gray-800">Identity Photo <span className="text-xs font-normal text-gray-400">(optional)</span></h2>
-              <p className="text-sm text-gray-500">Since you're registering this client in person, a selfie is optional — but adding one strengthens the KYC record.</p>
+              <p className="text-sm text-gray-500">Since you're registering this client in person, a selfie is optional, but adding one strengthens the KYC record.</p>
               <SelfieCapture value={form.selfie_data} onChange={v => update('selfie_data', v)} label="Client photo" required={false} />
               {!form.selfie_data && (
                 <button onClick={() => setStep(4)} className="w-full text-sm text-gray-400 hover:text-gray-600 py-2 border border-dashed border-gray-200 rounded-lg">
@@ -250,7 +250,7 @@ export default function ManualClientRegister() {
               </div>
               {dobMismatch && (
                 <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                  <AlertCircle size={16} /> Birth year doesn't match the ID number — go back to Personal Details and fix the date of birth or ID number before submitting.
+                  <AlertCircle size={16} /> Birth year doesn't match the ID number. Go back to Personal Details and fix the date of birth or ID number before submitting.
                 </div>
               )}
               {elderly && (

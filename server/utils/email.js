@@ -131,7 +131,7 @@ exports.sendAgentApprovedEmail = async ({ name, email }) => {
         </div>
         <div style="background:white;border-radius:10px;padding:24px;border:1px solid #e5e7eb;">
           <p style="color:#374151;margin:0 0 16px;">Hi <strong>${name}</strong>,</p>
-          <p style="color:#374151;margin:0 0 20px;">Good news — your ServTech Rwanda agent application has been approved. You can now log in using the email and password you set when you applied.</p>
+          <p style="color:#374151;margin:0 0 20px;">Good news, your ServTech Rwanda agent application has been approved. You can now log in using the email and password you set when you applied.</p>
           <div style="text-align:center;">
             <a href="${process.env.CLIENT_URL || 'https://servtech-rwanda.vercel.app'}/login"
                style="display:inline-block;background:#4f46e5;color:white;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px;">

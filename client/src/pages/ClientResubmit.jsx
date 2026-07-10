@@ -143,7 +143,7 @@ export default function ClientResubmit() {
           <div>
             <label className="block text-xs text-gray-400 mb-1.5">ID document photo <span className="text-gray-300">(optional update)</span></label>
             <label className="border border-dashed border-gray-200 rounded-lg px-4 py-3 text-sm text-gray-500 flex items-center justify-center cursor-pointer hover:bg-gray-50">
-              {form.id_document_data ? 'Photo selected — click to replace' : 'Upload a new ID photo'}
+              {form.id_document_data ? 'Photo selected, click to replace' : 'Upload a new ID photo'}
               <input type="file" accept="image/*" className="hidden" onChange={handleIdFile} />
             </label>
           </div>

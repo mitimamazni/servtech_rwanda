@@ -84,9 +84,9 @@ export default function ClientDashboard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100">
             {[
-              { label: 'Phone',    value: client?.phone || '—' },
-              { label: 'Igitsina', value: client?.gender || '—' },
-              { label: 'District', value: client?.district || '—' },
+              { label: 'Phone',    value: client?.phone || 'N/A' },
+              { label: 'Igitsina', value: client?.gender || 'N/A' },
+              { label: 'District', value: client?.district || 'N/A' },
               { label: 'Member Since', value: new Date(client?.created_at).toLocaleDateString('en-RW', { month: 'short', year: 'numeric' }) },
             ].map(({ label, value }) => (
               <div key={label}>

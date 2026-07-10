@@ -216,7 +216,7 @@ exports.createAgent = async (req, res) => {
       emailSent: !!emailResult?.success,
       message: emailResult?.success
         ? 'Agent created and credentials sent by email'
-        : 'Agent created. Email could not be sent — copy the password below and share it with the agent directly.',
+        : 'Agent created. Email could not be sent, copy the password below and share it with the agent directly.',
     });
   } catch (err) {
     console.error(err);
@@ -251,7 +251,7 @@ exports.resetAgentPassword = async (req, res) => {
       emailSent: !!emailResult?.success,
       message: emailResult?.success
         ? 'Password reset and new credentials sent by email'
-        : 'Password reset. Email could not be sent — copy the password below and share it with the agent directly.',
+        : 'Password reset. Email could not be sent, copy the password below and share it with the agent directly.',
     });
   } catch (err) {
     console.error(err);

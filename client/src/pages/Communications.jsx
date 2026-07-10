@@ -125,7 +125,7 @@ export default function Communications() {
           <h1 className="text-lg font-semibold text-gray-800">Client Communication</h1>
           <p className="text-sm text-gray-500">Templates, bulk messaging, and communication history</p>
           <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 mt-2 inline-block">
-            SMS delivery is simulated for this demo — messages are logged as sent but not delivered to a real network.
+            SMS delivery is simulated for this demo. Messages are logged as sent but not delivered to a real network.
           </p>
         </div>
 
@@ -221,7 +221,7 @@ export default function Communications() {
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
                 )}
                 <textarea value={templateForm.body} onChange={e => setTemplateForm(f => ({ ...f, body: e.target.value }))} rows={3}
-                  placeholder="Body — use {first_name}, {last_name}, {id_number}, {rejection_reason}"
+                  placeholder="Body (use {first_name}, {last_name}, {id_number}, {rejection_reason})"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none" />
                 <div className="flex gap-2">
                   <button onClick={handleCreateTemplate} className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-4 py-2 rounded-lg">Save</button>

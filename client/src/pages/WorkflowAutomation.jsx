@@ -113,7 +113,7 @@ export default function WorkflowAutomation() {
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
         <div>
           <h1 className="text-lg font-semibold text-gray-800 flex items-center gap-2"><Workflow size={18} className="text-primary-600" /> Workflow Automation</h1>
-          <p className="text-sm text-gray-500">Drag to reorder priority. Rules run top-to-bottom — the first matching rule decides the outcome.</p>
+          <p className="text-sm text-gray-500">Drag to reorder priority. Rules run top-to-bottom; the first matching rule decides the outcome.</p>
         </div>
 
         <div>

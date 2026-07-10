@@ -29,7 +29,7 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
     <div className={`rounded-xl p-3 ${color}`}><Icon size={22} className="text-white" /></div>
     <div>
-      <p className="text-2xl font-semibold text-gray-800">{value ?? '—'}</p>
+      <p className="text-2xl font-semibold text-gray-800">{value ?? 'N/A'}</p>
       <p className="text-sm text-gray-500">{label}</p>
     </div>
   </div>
@@ -153,13 +153,13 @@ export default function AdminDashboard() {
                     <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-800">{c.first_name} {c.last_name}</div>
-                        <div className="text-xs text-gray-400">{c.phone || '—'}</div>
+                        <div className="text-xs text-gray-400">{c.phone || 'N/A'}</div>
                       </td>
                       <td className="px-4 py-3 text-gray-600 font-mono text-xs">{c.id_number}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.gender || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.district || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.gender || 'N/A'}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.district || 'N/A'}</td>
                       <td className="px-4 py-3">
-                        <div className="text-gray-700 text-xs font-medium">{c.agent_name || '—'}</div>
+                        <div className="text-gray-700 text-xs font-medium">{c.agent_name || 'N/A'}</div>
                         <div className="text-gray-400 text-xs">{c.agent_phone || ''}</div>
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">

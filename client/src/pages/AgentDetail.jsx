@@ -105,9 +105,9 @@ export default function AgentDetail() {
 
           {!editing ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-5 pt-5 border-t border-gray-100 text-sm">
-              <div><p className="text-xs text-gray-400">Phone</p><p className="font-medium text-gray-700">{agent?.phone || '—'}</p></div>
+              <div><p className="text-xs text-gray-400">Phone</p><p className="font-medium text-gray-700">{agent?.phone || 'N/A'}</p></div>
               <div><p className="text-xs text-gray-400">Clients registered</p><p className="font-medium text-gray-700">{clients?.length || 0}</p></div>
-              <div><p className="text-xs text-gray-400">Joined</p><p className="font-medium text-gray-700">{agent?.created_at ? new Date(agent.created_at).toLocaleDateString() : '—'}</p></div>
+              <div><p className="text-xs text-gray-400">Joined</p><p className="font-medium text-gray-700">{agent?.created_at ? new Date(agent.created_at).toLocaleDateString() : 'N/A'}</p></div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-gray-100 text-sm">

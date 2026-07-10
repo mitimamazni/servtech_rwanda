@@ -35,7 +35,7 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
       <Icon size={22} className="text-white" />
     </div>
     <div>
-      <p className="text-2xl font-semibold text-gray-800">{value ?? '—'}</p>
+      <p className="text-2xl font-semibold text-gray-800">{value ?? 'N/A'}</p>
       <p className="text-sm text-gray-500">{label}</p>
     </div>
   </div>
@@ -233,12 +233,12 @@ export default function Dashboard() {
                         <div className="font-medium text-gray-800">
                           {client.first_name} {client.last_name}
                         </div>
-                        <div className="text-xs text-gray-400">{client.phone || '—'}</div>
+                        <div className="text-xs text-gray-400">{client.phone || 'N/A'}</div>
                       </td>
                       <td className="px-5 py-4 text-gray-600 font-mono text-xs">{client.id_number}</td>
-                      <td className="px-5 py-4 text-gray-600">{client.gender || '—'}</td>
-                      <td className="px-5 py-4 text-gray-600">{client.district || '—'}</td>
-                      <td className="px-5 py-4 text-gray-500 text-xs">{client.agent_name || '—'}</td>
+                      <td className="px-5 py-4 text-gray-600">{client.gender || 'N/A'}</td>
+                      <td className="px-5 py-4 text-gray-600">{client.district || 'N/A'}</td>
+                      <td className="px-5 py-4 text-gray-500 text-xs">{client.agent_name || 'N/A'}</td>
                       <td className="px-5 py-4 text-gray-500 text-xs">
                         {new Date(client.created_at).toLocaleDateString('en-RW', {
                           day: '2-digit', month: 'short', year: 'numeric'

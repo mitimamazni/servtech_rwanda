@@ -12,7 +12,7 @@ const ReasonBadge = ({ reason, success }) => {
     invalid_credentials: 'Invalid credentials',
     account_pending: 'Account pending',
     account_suspended: 'Account suspended',
-    password_ok_awaiting_2fa: 'Password OK — awaiting 2FA',
+    password_ok_awaiting_2fa: 'Password OK, awaiting 2FA',
     login_success: 'Login success',
     invalid_2fa_code: 'Invalid 2FA code',
     '2fa_verified': '2FA verified',
@@ -104,7 +104,7 @@ export default function SecurityMonitoring() {
           </h3>
           {alerts.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-gray-400 py-4">
-              <ShieldCheck size={16} className="text-green-500" /> No active alerts — no suspicious login patterns detected in the last 15 minutes.
+              <ShieldCheck size={16} className="text-green-500" /> No active alerts. No suspicious login patterns detected in the last 15 minutes.
             </div>
           ) : (
             <div className="space-y-2">

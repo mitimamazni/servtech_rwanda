@@ -405,7 +405,7 @@ export default function ClientSelfRegister() {
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-gray-500">{label}</span>
-                    <span className="text-gray-800 font-medium">{value || '—'}</span>
+                    <span className="text-gray-800 font-medium">{value || 'N/A'}</span>
                   </div>
                 ))}
               </div>

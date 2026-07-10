@@ -39,22 +39,22 @@ const runRegistrationWorkflow = async ({ clientId, firstName, lastName, selfieDa
   if (rules.sanctions_escalate && sanctions.flagged) {
     status = 'pending';
     await logExecution('sanctions_escalate', rules.sanctions_escalate.name, clientId,
-      `Flagged for manual review — name matched watchlist entry "${sanctions.matchName}" (mock screening).`);
+      `Flagged for manual review: name matched watchlist entry "${sanctions.matchName}" (mock screening).`);
   } else if (rules.face_match_flag && faceMatchScore !== null && faceMatchScore < 60) {
     status = 'pending';
     await logExecution('face_match_flag', rules.face_match_flag.name, clientId,
-      `Flagged for manual review — selfie/ID match confidence ${faceMatchScore}% is below the 60% threshold (mock screening).`);
+      `Flagged for manual review: selfie/ID match confidence ${faceMatchScore}% is below the 60% threshold (mock screening).`);
   } else if (rules.doc_authenticity_flag && documentAuthenticityScore !== null && documentAuthenticityScore < 50) {
     status = 'pending';
     await logExecution('doc_authenticity_flag', rules.doc_authenticity_flag.name, clientId,
-      `Flagged for manual review — document authenticity score ${documentAuthenticityScore}% is below the 50% threshold (mock screening).`);
+      `Flagged for manual review: document authenticity score ${documentAuthenticityScore}% is below the 50% threshold (mock screening).`);
   } else if (rules.registry_auto_verify && registryMatch) {
     status = 'verified';
     await logExecution('registry_auto_verify', rules.registry_auto_verify.name, clientId,
-      'Auto-verified — ID number matched the national registry and no screening rule flagged the application.');
+      'Auto-verified: ID number matched the national registry and no screening rule flagged the application.');
   } else {
     await logExecution('manual_review_default', 'Default routing', clientId,
-      'No automation rule matched — routed to manual review by default.');
+      'No automation rule matched, routed to manual review by default.');
   }
 
   return { status, rejectionReason, faceMatchScore, documentAuthenticityScore, sanctions };

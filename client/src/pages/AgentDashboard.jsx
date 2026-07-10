@@ -28,7 +28,7 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
     <div className={`rounded-xl p-3 ${color}`}><Icon size={22} className="text-white" /></div>
     <div>
-      <p className="text-2xl font-semibold text-gray-800">{value ?? '—'}</p>
+      <p className="text-2xl font-semibold text-gray-800">{value ?? 'N/A'}</p>
       <p className="text-sm text-gray-500">{label}</p>
     </div>
   </div>
@@ -134,9 +134,9 @@ export default function AgentDashboard() {
                     <tr key={c.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-800">{c.first_name} {c.last_name}</td>
                       <td className="px-4 py-3 text-gray-600 font-mono text-xs">{c.id_number}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.gender || '—'}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.district || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{c.phone || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.gender || 'N/A'}</td>
+                      <td className="px-4 py-3 text-gray-600">{c.district || 'N/A'}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{c.phone || 'N/A'}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
                         {new Date(c.created_at).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>

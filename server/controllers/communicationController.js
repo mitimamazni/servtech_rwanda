@@ -114,7 +114,7 @@ exports.sendBulkMessage = async (req, res) => {
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'BULK_MESSAGE', `Sent ${channel} to ${clientIds.length} client(s) — ${JSON.stringify(summary)}`]
+      [req.user.id, 'BULK_MESSAGE', `Sent ${channel} to ${clientIds.length} client(s): ${JSON.stringify(summary)}`]
     );
 
     res.json({ message: 'Bulk send complete', summary, total: clientIds.length });

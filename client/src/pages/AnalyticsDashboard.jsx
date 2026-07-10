@@ -109,7 +109,7 @@ export default function AnalyticsDashboard() {
           <StatCard label="Today's Registrations" value={todayCount ?? 0} icon={TrendingUp} color="bg-primary-600" />
           <StatCard label="Verified" value={statusBreakdown?.verified ?? 0} icon={BadgeCheck} color="bg-green-500" />
           <StatCard label="Rejected" value={statusBreakdown?.rejected ?? 0} icon={XCircle} color="bg-red-400" />
-          <StatCard label="KYC Pass Rate" value={kyc?.passRate != null ? `${kyc.passRate}%` : '—'} icon={Clock} color="bg-amber-500" />
+          <StatCard label="KYC Pass Rate" value={kyc?.passRate != null ? `${kyc.passRate}%` : 'N/A'} icon={Clock} color="bg-amber-500" />
         </div>
 
         {/* Registration trend */}

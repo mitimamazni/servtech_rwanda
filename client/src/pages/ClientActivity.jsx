@@ -288,9 +288,9 @@ export default function ClientActivity() {
 
           {!editing ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-gray-100 text-sm">
-              <div><p className="text-xs text-gray-400">Phone</p><p className="font-medium text-gray-700">{client?.phone || '—'}</p></div>
-              <div><p className="text-xs text-gray-400">Igitsina</p><p className="font-medium text-gray-700">{client?.gender || '—'}</p></div>
-              <div><p className="text-xs text-gray-400">District</p><p className="font-medium text-gray-700">{client?.district || '—'}</p></div>
+              <div><p className="text-xs text-gray-400">Phone</p><p className="font-medium text-gray-700">{client?.phone || 'N/A'}</p></div>
+              <div><p className="text-xs text-gray-400">Igitsina</p><p className="font-medium text-gray-700">{client?.gender || 'N/A'}</p></div>
+              <div><p className="text-xs text-gray-400">District</p><p className="font-medium text-gray-700">{client?.district || 'N/A'}</p></div>
               <div>
                 <p className="text-xs text-gray-400">Registered By</p>
                 <p className="font-medium text-gray-700">{client?.agent_name || 'Self-registered'}</p>
