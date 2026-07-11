@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, BadgeCheck, Clock, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Loader,
   Pencil, Ban, PlayCircle, Check, X, Image as ImageIcon, ShieldAlert,
+  UserPlus, RefreshCw, Mail, MessageSquare, Zap, History,
 } from 'lucide-react';
 
 const REJECTION_REASONS = [
@@ -17,6 +18,33 @@ const REJECTION_REASONS = [
   'Suspected duplicate or fraudulent application',
   'Other (specify below)',
 ];
+
+// Human-readable labels for audit action codes that show up in the timeline.
+const ACTION_LABELS = {
+  SELF_REGISTER: 'Self-registered',
+  SELF_REGISTER_REJECTED: 'Self-registration rejected',
+  REGISTER_CLIENT: 'Registered by agent',
+  REGISTRATION_REJECTED: 'Registration rejected',
+  KYC_RESUBMIT: 'Resubmitted KYC',
+  UPDATE_CLIENT: 'Details updated',
+  VALIDATE_CLIENT: 'KYC validated',
+  REJECT_CLIENT: 'KYC rejected',
+  ACTIVATE_CLIENT: 'Account activated',
+  DEACTIVATE_CLIENT: 'Account deactivated',
+};
+const humanizeAction = (action) =>
+  ACTION_LABELS[action] || action.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
+
+const TIMELINE_ICONS = {
+  SELF_REGISTER: UserPlus, SELF_REGISTER_REJECTED: XCircle, REGISTER_CLIENT: UserPlus,
+  REGISTRATION_REJECTED: XCircle, KYC_RESUBMIT: RefreshCw, UPDATE_CLIENT: Pencil,
+  VALIDATE_CLIENT: BadgeCheck, REJECT_CLIENT: XCircle, ACTIVATE_CLIENT: PlayCircle, DEACTIVATE_CLIENT: Ban,
+};
+const timelineIconFor = (event) => {
+  if (event.type === 'message') return event.action.startsWith('EMAIL') ? Mail : MessageSquare;
+  if (event.type === 'workflow') return Zap;
+  return TIMELINE_ICONS[event.action] || History;
+};
 
 const OutcomeBadge = ({ outcome }) => {
   const map = {
@@ -164,7 +192,7 @@ export default function ClientActivity() {
     </div>
   );
 
-  const { client, bets, stats } = data || {};
+  const { client, bets, stats, timeline } = data || {};
   const winRate = stats?.total_bets > 0 ? Math.round((stats.wins / stats.total_bets) * 100) : 0;
 
   return (
@@ -452,6 +480,46 @@ export default function ClientActivity() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+
+        {/* Activity timeline */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+            <History size={16} className="text-gray-400" />
+            <h3 className="font-medium text-gray-800">Activity Timeline</h3>
+          </div>
+          {!timeline?.length ? (
+            <div className="text-center py-12 text-gray-400 text-sm">No recorded activity yet</div>
+          ) : (
+            <div className="p-5">
+              <ol className="relative border-l border-gray-100 ml-2">
+                {timeline.map(event => {
+                  const Icon = timelineIconFor(event);
+                  return (
+                    <li key={event.id} className="mb-6 ml-5 last:mb-0">
+                      <span className="absolute flex items-center justify-center w-6 h-6 bg-gray-50 border border-gray-200 rounded-full -left-3">
+                        <Icon size={12} className="text-gray-500" />
+                      </span>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                        <p className="text-sm font-medium text-gray-800">
+                          {event.type === 'audit' ? humanizeAction(event.action) : event.type === 'message' ? `Message: ${event.action}` : event.action}
+                        </p>
+                        <time className="text-xs text-gray-400">
+                          {new Date(event.created_at).toLocaleString('en-RW', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </time>
+                      </div>
+                      {event.details && <p className="text-sm text-gray-500 mt-0.5">{event.details}</p>}
+                      {event.actor_name && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          by {event.actor_name}{event.actor_role ? ` (${event.actor_role})` : ''}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
           )}
         </div>

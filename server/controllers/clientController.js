@@ -87,8 +87,8 @@ exports.selfRegister = async (req, res) => {
       );
 
       await pool.query(
-        'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-        [null, 'SELF_REGISTER_REJECTED', `Self-registration rejected for ${id_number}: ${reason}`]
+        'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+        [null, rejectedResult.rows[0].id, 'SELF_REGISTER_REJECTED', `Self-registration rejected for ${id_number}: ${reason}`]
       );
 
       return res.status(400).json({
@@ -196,8 +196,8 @@ exports.selfRegister = async (req, res) => {
     );
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [userId, 'SELF_REGISTER', `Client self-registered: ${id_number} - status: ${clientResult.rows[0].status}`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [userId, newClientId, 'SELF_REGISTER', `Client self-registered: ${id_number} - status: ${clientResult.rows[0].status}`]
     );
 
     // Send welcome email
@@ -299,7 +299,9 @@ exports.getClientActivity = async (req, res) => {
       [clientId]
     );
 
-    res.json({ client, bets: bettingResult.rows, stats: statsResult.rows[0] });
+    const timeline = await getClientTimeline(clientId);
+
+    res.json({ client, bets: bettingResult.rows, stats: statsResult.rows[0], timeline });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -315,6 +317,52 @@ const findClientForAction = async (clientId, user) => {
     return { error: 403, message: 'You can only manage clients you registered' };
   }
   return { client };
+};
+
+// Builds a unified chronological activity timeline for one client: audit log
+// entries (registration, review decisions, edits, status changes), messages
+// sent to them, and automation-rule executions — merged and sorted newest first.
+// This is what powers the "Client Activity" timeline (Module 3), since none
+// of these tables alone tells the full story of what happened to a client.
+const getClientTimeline = async (clientId) => {
+  const [auditResult, messageResult, workflowResult] = await Promise.all([
+    pool.query(
+      `SELECT a.id, a.action, a.details, a.created_at, u.name AS actor_name, u.role AS actor_role
+       FROM audit_logs a LEFT JOIN users u ON a.user_id = u.id
+       WHERE a.client_id = $1 ORDER BY a.created_at DESC`,
+      [clientId]
+    ),
+    pool.query(
+      `SELECT m.id, m.channel, m.subject, m.status, m.error_detail, m.created_at, u.name AS actor_name
+       FROM message_log m LEFT JOIN users u ON m.sent_by = u.id
+       WHERE m.client_id = $1 ORDER BY m.created_at DESC`,
+      [clientId]
+    ),
+    pool.query(
+      `SELECT id, rule_name, result_summary, created_at
+       FROM workflow_execution_log WHERE client_id = $1 ORDER BY created_at DESC`,
+      [clientId]
+    ),
+  ]);
+
+  const events = [
+    ...auditResult.rows.map(r => ({
+      id: `audit-${r.id}`, type: 'audit', action: r.action, details: r.details,
+      actor_name: r.actor_name, actor_role: r.actor_role, created_at: r.created_at,
+    })),
+    ...messageResult.rows.map(r => ({
+      id: `message-${r.id}`, type: 'message', action: `${r.channel.toUpperCase()} - ${r.status}`,
+      details: `${r.subject ? r.subject + ' — ' : ''}${r.status === 'sent' ? 'Delivered successfully' : (r.error_detail || 'Not delivered')}`,
+      actor_name: r.actor_name || 'System', actor_role: null, created_at: r.created_at,
+    })),
+    ...workflowResult.rows.map(r => ({
+      id: `workflow-${r.id}`, type: 'workflow', action: r.rule_name, details: r.result_summary,
+      actor_name: 'Automation rule', actor_role: null, created_at: r.created_at,
+    })),
+  ];
+
+  events.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  return events;
 };
 
 // Client self-service: resubmit KYC after a rejection. Only allowed while the
@@ -386,8 +434,8 @@ exports.resubmitKyc = async (req, res) => {
     );
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'KYC_RESUBMIT', `Client resubmitted KYC for review: ${client.id_number}`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, client.id, 'KYC_RESUBMIT', `Client resubmitted KYC for review: ${client.id_number}`]
     );
 
     res.json({ message: 'Resubmitted for review. You will be notified once it is reviewed again.', client: result.rows[0] });
@@ -455,11 +503,117 @@ exports.updateClient = async (req, res) => {
     );
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'UPDATE_CLIENT', `Updated client ${client.id_number} (id ${clientId})`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, clientId, 'UPDATE_CLIENT', `Updated client ${client.id_number} (id ${clientId})`]
     );
 
     res.json({ message: 'Client updated', client: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only: bulk-validate a set of pending clients in one action.
+exports.bulkValidateClients = async (req, res) => {
+  const { clientIds } = req.body;
+  if (!Array.isArray(clientIds) || clientIds.length === 0) {
+    return res.status(400).json({ message: 'Select at least one client.' });
+  }
+  try {
+    // Only clients still pending are touched — silently skips anything
+    // already verified/rejected rather than erroring on a stale selection.
+    const result = await pool.query(
+      `UPDATE clients SET status = 'verified', rejection_reason = NULL
+       WHERE id = ANY($1::int[]) AND status = 'pending'
+       RETURNING id, id_number`,
+      [clientIds]
+    );
+
+    const template = await pool.query(`SELECT id, subject, body FROM message_templates WHERE name = 'KYC Approved' LIMIT 1`);
+
+    for (const row of result.rows) {
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+        [req.user.id, row.id, 'VALIDATE_CLIENT', `Validated client ${row.id_number} (id ${row.id}) — bulk action`]
+      );
+      const workflow = await runReviewWorkflow({ clientId: row.id, outcome: 'verified' });
+      if (workflow.notify && template.rows.length > 0) {
+        const t = template.rows[0];
+        await sendToClient({ clientId: row.id, channel: 'email', subject: t.subject, body: t.body, templateId: t.id, sentBy: req.user.id });
+      }
+    }
+
+    res.json({ message: `${result.rows.length} client(s) validated`, validatedIds: result.rows.map(r => r.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin only: bulk-reject a set of pending clients with one shared reason.
+exports.bulkRejectClients = async (req, res) => {
+  const { clientIds, reason } = req.body;
+  if (!Array.isArray(clientIds) || clientIds.length === 0) {
+    return res.status(400).json({ message: 'Select at least one client.' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE clients SET status = 'rejected', rejection_reason = $1
+       WHERE id = ANY($2::int[]) AND status = 'pending'
+       RETURNING id, id_number`,
+      [reason || 'Rejected on manual review', clientIds]
+    );
+
+    const template = await pool.query(`SELECT id, subject, body FROM message_templates WHERE name = 'KYC Rejected' LIMIT 1`);
+
+    for (const row of result.rows) {
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+        [req.user.id, row.id, 'REJECT_CLIENT', `Rejected client ${row.id_number} (id ${row.id}) — bulk action${reason ? ` - reason: ${reason}` : ''}`]
+      );
+      const workflow = await runReviewWorkflow({ clientId: row.id, outcome: 'rejected' });
+      if (workflow.notify && template.rows.length > 0) {
+        const t = template.rows[0];
+        await sendToClient({ clientId: row.id, channel: 'email', subject: t.subject, body: t.body, templateId: t.id, sentBy: req.user.id });
+      }
+    }
+
+    res.json({ message: `${result.rows.length} client(s) rejected`, rejectedIds: result.rows.map(r => r.id) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin: any selected client. Agent: silently restricted to clients they personally registered.
+exports.bulkSetClientActive = async (req, res) => {
+  const { clientIds, is_active } = req.body;
+  if (!Array.isArray(clientIds) || clientIds.length === 0) {
+    return res.status(400).json({ message: 'Select at least one client.' });
+  }
+  try {
+    const result = req.user.role === 'agent'
+      ? await pool.query(
+          `UPDATE clients SET is_active = $1 WHERE id = ANY($2::int[]) AND registered_by = $3 RETURNING id, id_number, user_id`,
+          [!!is_active, clientIds, req.user.id]
+        )
+      : await pool.query(
+          `UPDATE clients SET is_active = $1 WHERE id = ANY($2::int[]) RETURNING id, id_number, user_id`,
+          [!!is_active, clientIds]
+        );
+
+    for (const row of result.rows) {
+      if (row.user_id) {
+        await pool.query('UPDATE users SET status = $1 WHERE id = $2', [is_active ? 'active' : 'suspended', row.user_id]);
+      }
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+        [req.user.id, row.id, is_active ? 'ACTIVATE_CLIENT' : 'DEACTIVATE_CLIENT', `${is_active ? 'Activated' : 'Deactivated'} client ${row.id_number} (id ${row.id}) — bulk action`]
+      );
+    }
+
+    res.json({ message: `${result.rows.length} client(s) ${is_active ? 'activated' : 'deactivated'}` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -477,8 +631,8 @@ exports.validateClient = async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ message: 'Client not found' });
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'VALIDATE_CLIENT', `Validated client ${result.rows[0].id_number} (id ${clientId})`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, clientId, 'VALIDATE_CLIENT', `Validated client ${result.rows[0].id_number} (id ${clientId})`]
     );
 
     // Configurable automation: if the "notify on approval" rule is enabled,
@@ -511,8 +665,8 @@ exports.rejectClient = async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ message: 'Client not found' });
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'REJECT_CLIENT', `Rejected client ${result.rows[0].id_number} (id ${clientId})${reason ? ` - reason: ${reason}` : ''}`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, clientId, 'REJECT_CLIENT', `Rejected client ${result.rows[0].id_number} (id ${clientId})${reason ? ` - reason: ${reason}` : ''}`]
     );
 
     // Configurable automation: if the "notify on rejection" rule is enabled,
@@ -552,8 +706,8 @@ exports.setClientActive = async (req, res) => {
     }
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, is_active ? 'ACTIVATE_CLIENT' : 'DEACTIVATE_CLIENT', `${is_active ? 'Activated' : 'Deactivated'} client ${client.id_number} (id ${clientId})`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, clientId, is_active ? 'ACTIVATE_CLIENT' : 'DEACTIVATE_CLIENT', `${is_active ? 'Activated' : 'Deactivated'} client ${client.id_number} (id ${clientId})`]
     );
 
     res.json({ message: is_active ? 'Client activated' : 'Client deactivated', client: result.rows[0] });

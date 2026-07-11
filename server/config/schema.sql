@@ -75,10 +75,12 @@ CREATE TABLE betting_activity (
 CREATE TABLE audit_logs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
+  client_id INTEGER REFERENCES clients(id),
   action VARCHAR(100) NOT NULL,
   details TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX idx_audit_logs_client_id ON audit_logs(client_id);
 
 -- ── Security & Access Control ─────────────────────────────────────────────
 CREATE TABLE login_attempts (

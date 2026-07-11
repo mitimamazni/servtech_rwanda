@@ -11,6 +11,9 @@ const {
   setClientActive,
   resubmitKyc,
   getClientDocuments,
+  bulkValidateClients,
+  bulkRejectClients,
+  bulkSetClientActive,
 } = require('../controllers/clientController');
 
 const adminOnly = (req, res, next) => {
@@ -45,5 +48,12 @@ router.patch('/clients/:clientId/active', auth, adminOrAgent, setClientActive);
 // Admin only — KYC decisions
 router.patch('/clients/:clientId/validate', auth, adminOnly, validateClient);
 router.patch('/clients/:clientId/reject', auth, adminOnly, rejectClient);
+
+// Bulk operations — validate/reject are admin-only (mirrors the single-client
+// versions); bulk activate/deactivate is admin-or-agent, with agents silently
+// scoped to clients they personally registered (checked in the controller).
+router.post('/clients/bulk/validate', auth, adminOnly, bulkValidateClients);
+router.post('/clients/bulk/reject', auth, adminOnly, bulkRejectClients);
+router.post('/clients/bulk/active', auth, adminOrAgent, bulkSetClientActive);
 
 module.exports = router;

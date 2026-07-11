@@ -188,8 +188,8 @@ exports.registerClient = async (req, res) => {
     );
 
     await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'REGISTER_CLIENT', `Registered client ${id_number} - status: ${status}${elderlyAssisted ? ' (elderly, identity confirmed in person)' : ''}`]
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, newClientId, 'REGISTER_CLIENT', `Registered client ${id_number} - status: ${status}${elderlyAssisted ? ' (elderly, identity confirmed in person)' : ''}`]
     );
 
     res.status(201).json({ message: 'Client registered successfully', client: result.rows[0] });

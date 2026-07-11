@@ -8,7 +8,8 @@ import {
   Users, UserCheck, UserX, CalendarDays, Plus, Search,
   ChevronLeft, ChevronRight, BadgeCheck, Clock, XCircle,
   ShieldCheck, UserCog, BarChart2, Loader, ClipboardList, Camera,
-  ShieldAlert as ShieldAlert2, Workflow as Workflow2, Mail as Mail2
+  ShieldAlert as ShieldAlert2, Workflow as Workflow2, Mail as Mail2,
+  Download, Ban, PlayCircle, X as XIcon,
 } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -46,6 +47,10 @@ export default function AdminDashboard() {
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
+  const [showBulkReject, setShowBulkReject] = useState(false);
 
   useEffect(() => {
     axios.get('/stats').then(r => setStats(r.data)).catch(() => toast.error('Failed to load stats'));
@@ -53,11 +58,70 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setLoading(true);
+    setSelectedIds(new Set());
     axios.get('/clients', { params: { search, status: statusFilter, page } })
       .then(r => { setClients(r.data.clients); setTotal(r.data.total); setTotalPages(r.data.totalPages); })
       .catch(() => toast.error('Failed to load clients'))
       .finally(() => setLoading(false));
   }, [search, statusFilter, page]);
+
+  const refreshClients = () => {
+    setSelectedIds(new Set());
+    axios.get('/clients', { params: { search, status: statusFilter, page } })
+      .then(r => { setClients(r.data.clients); setTotal(r.data.total); setTotalPages(r.data.totalPages); })
+      .catch(() => toast.error('Failed to load clients'));
+  };
+
+  const toggleSelected = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => prev.size === clients.length ? new Set() : new Set(clients.map(c => c.id)));
+  };
+
+  const runBulkAction = async (url, body, successLabel) => {
+    setBulkBusy(true);
+    try {
+      const res = await axios.post(url, body);
+      toast.success(res.data.message || successLabel);
+      setShowBulkReject(false);
+      setBulkRejectReason('');
+      refreshClients();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Bulk action failed');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleBulkValidate = () => runBulkAction('/clients/bulk/validate', { clientIds: [...selectedIds] }, 'Clients validated');
+  const handleBulkReject = () => runBulkAction('/clients/bulk/reject', { clientIds: [...selectedIds], reason: bulkRejectReason || undefined }, 'Clients rejected');
+  const handleBulkActive = (is_active) => runBulkAction('/clients/bulk/active', { clientIds: [...selectedIds], is_active }, is_active ? 'Clients activated' : 'Clients deactivated');
+
+  // Exports whatever's currently selected on this page — client-side, from
+  // already-loaded rows, so no extra round trip is needed.
+  const handleExportSelected = () => {
+    const rows = clients.filter(c => selectedIds.has(c.id));
+    const headers = ['ID Number', 'First Name', 'Last Name', 'Gender', 'District', 'Phone', 'Status', 'Registered By', 'Registered At'];
+    const csvEscape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [
+      headers.join(','),
+      ...rows.map(c => [c.id_number, c.first_name, c.last_name, c.gender, c.district, c.phone, c.status, c.agent_name || 'Self-registered', c.created_at]
+        .map(csvEscape).join(',')),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `servtech-clients-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -129,6 +193,51 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {selectedIds.size > 0 && (
+            <div className="px-5 py-3 bg-primary-50 border-b border-primary-100 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-primary-700 font-medium mr-1">{selectedIds.size} selected</span>
+
+              <button onClick={handleBulkValidate} disabled={bulkBusy}
+                className="inline-flex items-center gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">
+                <BadgeCheck size={13} /> Validate
+              </button>
+
+              {!showBulkReject ? (
+                <button onClick={() => setShowBulkReject(true)} disabled={bulkBusy}
+                  className="inline-flex items-center gap-1.5 text-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg disabled:opacity-60">
+                  <XCircle size={13} /> Reject
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <input value={bulkRejectReason} onChange={e => setBulkRejectReason(e.target.value)}
+                    placeholder="Reason (optional)"
+                    className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs w-40" />
+                  <button onClick={handleBulkReject} disabled={bulkBusy}
+                    className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">Confirm</button>
+                  <button onClick={() => setShowBulkReject(false)} className="text-xs text-gray-500 px-1">Cancel</button>
+                </div>
+              )}
+
+              <button onClick={() => handleBulkActive(true)} disabled={bulkBusy}
+                className="inline-flex items-center gap-1.5 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg disabled:opacity-60">
+                <PlayCircle size={13} /> Activate
+              </button>
+              <button onClick={() => handleBulkActive(false)} disabled={bulkBusy}
+                className="inline-flex items-center gap-1.5 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg disabled:opacity-60">
+                <Ban size={13} /> Deactivate
+              </button>
+              <button onClick={handleExportSelected}
+                className="inline-flex items-center gap-1.5 text-xs border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg">
+                <Download size={13} /> Export CSV
+              </button>
+
+              <button onClick={() => setSelectedIds(new Set())}
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 ml-auto">
+                <XIcon size={13} /> Clear
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400">
               <Loader size={20} className="animate-spin mr-2" /> Loading...
@@ -143,6 +252,12 @@ export default function AdminDashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 text-left">
+                    <th className="px-4 py-3 w-8">
+                      <input type="checkbox"
+                        checked={clients.length > 0 && selectedIds.size === clients.length}
+                        onChange={toggleSelectAll}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    </th>
                     {['Client', 'ID Number', 'Igitsina', 'District', 'Registered By', 'Date', 'Status', 'Activity'].map(h => (
                       <th key={h} className="px-4 py-3 text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
                     ))}
@@ -150,7 +265,11 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {clients.map(c => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={c.id} className={`hover:bg-gray-50 transition-colors ${selectedIds.has(c.id) ? 'bg-primary-50/40' : ''}`}>
+                      <td className="px-4 py-3">
+                        <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelected(c.id)}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-800">{c.first_name} {c.last_name}</div>
                         <div className="text-xs text-gray-400">{c.phone || 'N/A'}</div>
