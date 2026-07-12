@@ -122,8 +122,8 @@ export default function ClientActivity() {
   const handleValidate = async () => {
     setBusy(true);
     try {
-      await axios.patch(`/clients/${clientId}/validate`);
-      toast.success('Client verified');
+      const res = await axios.patch(`/clients/${clientId}/validate`);
+      toast.success(res.data.message || 'Client verified');
       load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Action failed');
@@ -192,7 +192,7 @@ export default function ClientActivity() {
     </div>
   );
 
-  const { client, bets, stats, timeline } = data || {};
+  const { client, bets, stats, timeline, approvalChain } = data || {};
   const winRate = stats?.total_bets > 0 ? Math.round((stats.wins / stats.total_bets) * 100) : 0;
 
   return (
@@ -233,6 +233,21 @@ export default function ClientActivity() {
           {client?.status === 'rejected' && client?.rejection_reason && (
             <div className="mt-4 bg-red-50 border border-red-100 text-red-700 text-sm rounded-lg px-4 py-2.5">
               <span className="font-medium">Rejection reason:</span> {client.rejection_reason}
+            </div>
+          )}
+
+          {approvalChain && client?.status === 'pending' && (
+            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3">
+              <p className="text-xs font-medium text-amber-800 mb-2">
+                {approvalChain.name} — step {Math.min(approvalChain.completedSteps + 1, approvalChain.steps.length)} of {approvalChain.steps.length}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {approvalChain.steps.map((s, i) => (
+                  <span key={s.id} className={`text-xs px-2.5 py-1 rounded-full border ${i < approvalChain.completedSteps ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                    {i < approvalChain.completedSteps ? '✓ ' : ''}{s.label} ({s.required_role})
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
@@ -388,7 +403,10 @@ export default function ClientActivity() {
                 <>
                   <button onClick={handleValidate} disabled={busy}
                     className="inline-flex items-center gap-1.5 text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">
-                    <BadgeCheck size={14} /> Validate
+                    <BadgeCheck size={14} />
+                    {approvalChain
+                      ? `Approve step ${approvalChain.completedSteps + 1} of ${approvalChain.steps.length}`
+                      : 'Validate'}
                   </button>
                   {!showRejectBox ? (
                     <button onClick={() => setShowRejectBox(true)}

@@ -32,16 +32,19 @@ export default function Communications() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([
+    Promise.allSettled([
       axios.get('/communications/templates'),
       axios.get('/clients?limit=200'),
       axios.get('/communications/log'),
     ]).then(([t, c, m]) => {
-      setTemplates(t.data.templates);
-      setClients(c.data.clients || []);
-      setMessageLog(m.data.messages);
-    }).catch(() => toast.error('Failed to load communications data'))
-      .finally(() => setLoading(false));
+      if (t.status === 'fulfilled') setTemplates(t.value.data.templates);
+      if (c.status === 'fulfilled') setClients(c.value.data.clients || []);
+      if (m.status === 'fulfilled') setMessageLog(m.value.data.messages);
+
+      const failed = [t, c, m].filter(r => r.status === 'rejected').length;
+      if (failed === 3) toast.error('Failed to load communications data');
+      else if (failed > 0) toast.error('Some communications data failed to load — showing what loaded successfully');
+    }).finally(() => setLoading(false));
   };
 
   useEffect(load, []);

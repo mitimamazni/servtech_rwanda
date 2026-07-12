@@ -37,16 +37,19 @@ export default function SecurityMonitoring() {
 
   const load = () => {
     setLoading(true);
-    Promise.all([
+    Promise.allSettled([
       axios.get('/security/login-attempts'),
       axios.get('/security/alerts'),
       axios.get('/security/blocked-ips'),
     ]).then(([a, b, c]) => {
-      setAttempts(a.data.attempts);
-      setAlerts(b.data.alerts);
-      setBlockedIps(c.data.blockedIps);
-    }).catch(() => toast.error('Failed to load security data'))
-      .finally(() => setLoading(false));
+      if (a.status === 'fulfilled') setAttempts(a.value.data.attempts);
+      if (b.status === 'fulfilled') setAlerts(b.value.data.alerts);
+      if (c.status === 'fulfilled') setBlockedIps(c.value.data.blockedIps);
+
+      const failed = [a, b, c].filter(r => r.status === 'rejected').length;
+      if (failed === 3) toast.error('Failed to load security data');
+      else if (failed > 0) toast.error('Some security data failed to load — showing what loaded successfully');
+    }).finally(() => setLoading(false));
   };
 
   useEffect(load, []);

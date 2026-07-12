@@ -110,6 +110,9 @@ CREATE TABLE automation_rules (
   action VARCHAR(100) NOT NULL,
   enabled BOOLEAN DEFAULT true,
   sort_order INTEGER DEFAULT 0,
+  config JSONB DEFAULT '{}',
+  position_x INTEGER,
+  position_y INTEGER,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -119,6 +122,78 @@ CREATE TABLE workflow_execution_log (
   rule_name VARCHAR(150),
   client_id INTEGER REFERENCES clients(id),
   result_summary TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Escalation: "if a client has been pending review longer than N hours, escalate"
+CREATE TABLE escalation_rules (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  condition_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  threshold_hours INTEGER NOT NULL DEFAULT 48,
+  notify_role VARCHAR(20) NOT NULL DEFAULT 'admin',
+  enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE escalation_log (
+  id SERIAL PRIMARY KEY,
+  escalation_rule_id INTEGER REFERENCES escalation_rules(id) ON DELETE CASCADE,
+  client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+  hours_pending NUMERIC,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(escalation_rule_id, client_id)
+);
+
+-- Approval chains: configurable multi-step sign-off for high-risk clients
+CREATE TABLE approval_chains (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  trigger_condition VARCHAR(50) NOT NULL DEFAULT 'sanctions_or_elderly',
+  enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE approval_chain_steps (
+  id SERIAL PRIMARY KEY,
+  chain_id INTEGER REFERENCES approval_chains(id) ON DELETE CASCADE,
+  step_order INTEGER NOT NULL,
+  required_role VARCHAR(20) NOT NULL DEFAULT 'admin',
+  label VARCHAR(150) NOT NULL,
+  UNIQUE(chain_id, step_order)
+);
+
+CREATE TABLE approval_decisions (
+  id SERIAL PRIMARY KEY,
+  client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+  chain_id INTEGER REFERENCES approval_chains(id),
+  step_id INTEGER REFERENCES approval_chain_steps(id),
+  decided_by INTEGER REFERENCES users(id),
+  decision VARCHAR(20) NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+ALTER TABLE clients ADD COLUMN approval_chain_id INTEGER REFERENCES approval_chains(id);
+ALTER TABLE clients ADD COLUMN approval_step_index INTEGER NOT NULL DEFAULT 0;
+
+-- External service integrations: outbound webhooks fired on rule execution
+CREATE TABLE webhook_integrations (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  url TEXT NOT NULL,
+  trigger_event VARCHAR(100) NOT NULL DEFAULT 'client_registered',
+  enabled BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE webhook_delivery_log (
+  id SERIAL PRIMARY KEY,
+  webhook_id INTEGER REFERENCES webhook_integrations(id) ON DELETE CASCADE,
+  client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL,
+  status_code INTEGER,
+  error_detail TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -148,13 +223,25 @@ CREATE TABLE message_log (
 );
 
 -- Seed default automation rules
-INSERT INTO automation_rules (code, name, description, trigger_event, action, enabled, sort_order) VALUES
-  ('sanctions_escalate',  'Escalate sanctions/PEP matches',        'If a client name matches the sanctions/PEP watchlist, automatically flag the application for manual admin review instead of auto-verifying.', 'client_registered', 'flag_for_review', true, 1),
-  ('face_match_flag',     'Flag low selfie/ID match confidence',   'If the selfie-to-ID face match score falls below 60%, flag the application for manual review rather than auto-approving.',                    'client_registered', 'flag_for_review', true, 2),
-  ('doc_authenticity_flag','Flag suspect ID documents',            'If the ID document authenticity check score falls below 50%, flag the application for manual review.',                                       'client_registered', 'flag_for_review', true, 3),
-  ('registry_auto_verify','Auto-verify on registry match',         'If the ID number is found in the national registry and no other rule has flagged the application, verify it automatically without waiting on an admin.', 'client_registered', 'auto_verify', true, 4),
-  ('rejection_notify',   'Notify client on rejection',             'When an admin rejects a client''s KYC, automatically send them an email with the rejection reason and resubmission instructions.',                  'kyc_reviewed', 'send_notification', true, 5),
-  ('approval_notify',    'Notify client on approval',              'When a client is verified, automatically send a welcome/approval notification.',                                                                'kyc_reviewed', 'send_notification', true, 6);
+INSERT INTO automation_rules (code, name, description, trigger_event, action, enabled, sort_order, config) VALUES
+  ('sanctions_escalate',  'Escalate sanctions/PEP matches',        'If a client name matches the sanctions/PEP watchlist, automatically flag the application for manual admin review instead of auto-verifying.', 'client_registered', 'flag_for_review', true, 1, '{}'),
+  ('face_match_flag',     'Flag low selfie/ID match confidence',   'If the selfie-to-ID face match score falls below the threshold, flag the application for manual review rather than auto-approving.',           'client_registered', 'flag_for_review', true, 2, '{"threshold": 60}'),
+  ('doc_authenticity_flag','Flag suspect ID documents',            'If the ID document authenticity check score falls below the threshold, flag the application for manual review.',                              'client_registered', 'flag_for_review', true, 3, '{"threshold": 50}'),
+  ('registry_auto_verify','Auto-verify on registry match',         'If the ID number is found in the national registry and no other rule has flagged the application, verify it automatically without waiting on an admin.', 'client_registered', 'auto_verify', true, 4, '{}'),
+  ('rejection_notify',   'Notify client on rejection',             'When an admin rejects a client''s KYC, automatically send them an email with the rejection reason and resubmission instructions.',                  'kyc_reviewed', 'send_notification', true, 5, '{}'),
+  ('approval_notify',    'Notify client on approval',              'When a client is verified, automatically send a welcome/approval notification.',                                                                'kyc_reviewed', 'send_notification', true, 6, '{}');
+
+-- Seed escalation rule
+INSERT INTO escalation_rules (name, condition_status, threshold_hours, notify_role, enabled) VALUES
+  ('Pending KYC review over 48h', 'pending', 48, 'admin', true);
+
+-- Seed approval chain: high-risk clients require two admin sign-offs
+INSERT INTO approval_chains (name, trigger_condition, enabled) VALUES
+  ('High-risk client sign-off', 'sanctions_or_elderly', true);
+INSERT INTO approval_chain_steps (chain_id, step_order, required_role, label)
+  SELECT id, 1, 'admin', 'Initial admin review' FROM approval_chains WHERE name = 'High-risk client sign-off';
+INSERT INTO approval_chain_steps (chain_id, step_order, required_role, label)
+  SELECT id, 2, 'admin', 'Secondary sign-off' FROM approval_chains WHERE name = 'High-risk client sign-off';
 
 -- Seed default message templates
 INSERT INTO message_templates (name, channel, subject, body) VALUES

@@ -82,6 +82,21 @@ exports.blockIp = async (req, res) => {
 
   const trimmed = ip_address.trim();
 
+  // Private/reserved ranges (RFC 1918, loopback, link-local) should never be
+  // blockable here: this app is only reachable by real clients over the
+  // public internet via Render's edge, so a private address in this table
+  // can only be a mistake — and if req.ip ever resolves to an internal hop
+  // address instead of the true client IP (e.g. a proxy-chain misconfig),
+  // a stray private-range block can silently take out real production
+  // traffic with no obvious connection to the cause. Better to refuse it
+  // outright than debug that again.
+  const isPrivateOrReserved = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$|fc|fd)/i.test(trimmed);
+  if (isPrivateOrReserved) {
+    return res.status(400).json({
+      message: 'That looks like a private/internal IP address, not a public client IP. Blocking it would either do nothing (if it never matches real traffic) or, worse, silently block unrelated users if it does — refusing it as a safeguard.',
+    });
+  }
+
   // The block applies to every request from that IP, regardless of account —
   // so blocking your own current IP locks out you (and anyone else on the
   // same network/NAT) with no way to undo it from the UI. Refuse it outright.

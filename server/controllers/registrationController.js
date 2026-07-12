@@ -176,15 +176,16 @@ exports.registerClient = async (req, res) => {
       selfieData: selfie_data,
       idDocumentData: id_document_data,
       registryMatch,
+      elderlyAssisted,
     });
     const status = workflowResult.status;
 
     const result = await pool.query(
       `UPDATE clients SET status = $1, face_match_score = $2, document_authenticity_score = $3,
-              sanctions_flag = $4, sanctions_match_name = $5
-       WHERE id = $6
+              sanctions_flag = $4, sanctions_match_name = $5, approval_chain_id = $6
+       WHERE id = $7
        RETURNING id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, created_at`,
-      [status, workflowResult.faceMatchScore, workflowResult.documentAuthenticityScore, workflowResult.sanctions.flagged, workflowResult.sanctions.matchName, newClientId]
+      [status, workflowResult.faceMatchScore, workflowResult.documentAuthenticityScore, workflowResult.sanctions.flagged, workflowResult.sanctions.matchName, workflowResult.approvalChainId, newClientId]
     );
 
     await pool.query(

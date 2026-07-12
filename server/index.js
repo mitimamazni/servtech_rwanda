@@ -73,5 +73,17 @@ app.use('/api', communicationRoutes);
 
 app.get('/', (req, res) => res.json({ message: 'ServTech Rwanda API is running' }));
 
+// Temporary diagnostic route — lets you confirm req.ip is resolving to your
+// real public IP rather than an internal Render proxy hop. Open this in a
+// browser and compare the "ip" field to "what's my ip" for the same device.
+// Safe to delete once trust proxy is confirmed correct; exposes nothing
+// beyond what the requester already knows about their own connection.
+app.get('/debug/ip', (req, res) => res.json({
+  ip: req.ip,
+  ips: req.ips,
+  xForwardedFor: req.headers['x-forwarded-for'] || null,
+  socketRemoteAddress: req.socket.remoteAddress,
+}));
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

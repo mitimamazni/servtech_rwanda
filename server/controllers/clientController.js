@@ -24,7 +24,7 @@ const SAFE_CLIENT_COLUMNS = `
   district, status, rejection_reason, is_active, elderly_assisted, registered_by,
   created_at, kyc_submitted_at,
   face_match_score, document_authenticity_score, sanctions_flag, sanctions_match_name,
-  sms_opt_in, email_opt_in,
+  sms_opt_in, email_opt_in, approval_chain_id, approval_step_index,
   (selfie_data IS NOT NULL) AS has_selfie,
   (id_document_data IS NOT NULL) AS has_id_document
 `;
@@ -182,8 +182,8 @@ exports.selfRegister = async (req, res) => {
 
     const clientResult = await pool.query(
       `UPDATE clients SET status = $1, face_match_score = $2, document_authenticity_score = $3,
-              sanctions_flag = $4, sanctions_match_name = $5
-       WHERE id = $6
+              sanctions_flag = $4, sanctions_match_name = $5, approval_chain_id = $6
+       WHERE id = $7
        RETURNING id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, registered_by, created_at`,
       [
         workflowResult.status,
@@ -191,6 +191,7 @@ exports.selfRegister = async (req, res) => {
         workflowResult.documentAuthenticityScore,
         workflowResult.sanctions.flagged,
         workflowResult.sanctions.matchName,
+        workflowResult.approvalChainId,
         newClientId,
       ]
     );
@@ -268,7 +269,7 @@ exports.getClientActivity = async (req, res) => {
       `SELECT c.id, c.user_id, c.id_number, c.first_name, c.last_name, c.date_of_birth,
               c.gender, c.phone, c.district, c.status, c.rejection_reason, c.is_active,
               c.elderly_assisted, c.registered_by, c.created_at, c.kyc_submitted_at,
-              c.sms_opt_in, c.email_opt_in,
+              c.sms_opt_in, c.email_opt_in, c.approval_chain_id, c.approval_step_index,
               (c.selfie_data IS NOT NULL) AS has_selfie,
               (c.id_document_data IS NOT NULL) AS has_id_document,
               u.email, u2.name as agent_name, u2.phone as agent_phone, u2.id as agent_id
@@ -283,6 +284,15 @@ exports.getClientActivity = async (req, res) => {
     const client = clientResult.rows[0];
     if (req.user.role === 'agent' && client.agent_id !== req.user.id) {
       return res.status(403).json({ message: 'You can only view clients you registered' });
+    }
+
+    let approvalChain = null;
+    if (client.approval_chain_id) {
+      const chainResult = await pool.query('SELECT id, name FROM approval_chains WHERE id = $1', [client.approval_chain_id]);
+      const stepsResult = await pool.query('SELECT id, step_order, required_role, label FROM approval_chain_steps WHERE chain_id = $1 ORDER BY step_order ASC', [client.approval_chain_id]);
+      if (chainResult.rows.length > 0) {
+        approvalChain = { ...chainResult.rows[0], steps: stepsResult.rows, completedSteps: client.approval_step_index };
+      }
     }
 
     const bettingResult = await pool.query(
@@ -301,7 +311,7 @@ exports.getClientActivity = async (req, res) => {
 
     const timeline = await getClientTimeline(clientId);
 
-    res.json({ client, bets: bettingResult.rows, stats: statsResult.rows[0], timeline });
+    res.json({ client, bets: bettingResult.rows, stats: statsResult.rows[0], timeline, approvalChain });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -423,13 +433,15 @@ exports.resubmitKyc = async (req, res) => {
          document_authenticity_score = $11,
          sanctions_flag = $12,
          sanctions_match_name = $13,
-         kyc_submitted_at = NOW()
-       WHERE id = $14
+         kyc_submitted_at = NOW(),
+         approval_chain_id = $14,
+         approval_step_index = 0
+       WHERE id = $15
        RETURNING id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, created_at`,
       [
         first_name, last_name, date_of_birth, gender, phone, district, selfie_data, id_document_data,
         workflowResult.status, workflowResult.faceMatchScore, workflowResult.documentAuthenticityScore,
-        workflowResult.sanctions.flagged, workflowResult.sanctions.matchName, client.id,
+        workflowResult.sanctions.flagged, workflowResult.sanctions.matchName, workflowResult.approvalChainId, client.id,
       ]
     );
 
@@ -521,14 +533,21 @@ exports.bulkValidateClients = async (req, res) => {
     return res.status(400).json({ message: 'Select at least one client.' });
   }
   try {
-    // Only clients still pending are touched — silently skips anything
-    // already verified/rejected rather than erroring on a stale selection.
+    // Clients routed into an approval chain (sanctions match / elderly-assisted)
+    // are deliberately excluded from bulk validation — bulk-approving in one
+    // click would defeat the point of requiring individual sign-off steps.
     const result = await pool.query(
       `UPDATE clients SET status = 'verified', rejection_reason = NULL
-       WHERE id = ANY($1::int[]) AND status = 'pending'
+       WHERE id = ANY($1::int[]) AND status = 'pending' AND approval_chain_id IS NULL
        RETURNING id, id_number`,
       [clientIds]
     );
+
+    const skippedChainResult = await pool.query(
+      `SELECT COUNT(*) FROM clients WHERE id = ANY($1::int[]) AND status = 'pending' AND approval_chain_id IS NOT NULL`,
+      [clientIds]
+    );
+    const skippedForChain = parseInt(skippedChainResult.rows[0].count);
 
     const template = await pool.query(`SELECT id, subject, body FROM message_templates WHERE name = 'KYC Approved' LIMIT 1`);
 
@@ -544,7 +563,10 @@ exports.bulkValidateClients = async (req, res) => {
       }
     }
 
-    res.json({ message: `${result.rows.length} client(s) validated`, validatedIds: result.rows.map(r => r.id) });
+    res.json({
+      message: `${result.rows.length} client(s) validated${skippedForChain > 0 ? ` — ${skippedForChain} skipped (require individual multi-step sign-off)` : ''}`,
+      validatedIds: result.rows.map(r => r.id),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -620,10 +642,64 @@ exports.bulkSetClientActive = async (req, res) => {
   }
 };
 
-// Admin only: approve a pending client (KYC "Validate" action)
+// Admin only: approve a pending client (KYC "Validate" action).
+// If the client is routed into an approval chain (sanctions match or
+// elderly-assisted — see workflowEngine), this records just one sign-off
+// step rather than a final decision; the client only flips to "verified"
+// once every configured step has approved.
 exports.validateClient = async (req, res) => {
   const { clientId } = req.params;
   try {
+    const clientRow = await pool.query(`SELECT ${SAFE_CLIENT_COLUMNS} FROM clients WHERE id = $1`, [clientId]);
+    if (clientRow.rows.length === 0) return res.status(404).json({ message: 'Client not found' });
+    const client = clientRow.rows[0];
+
+    if (client.approval_chain_id) {
+      const stepsResult = await pool.query(
+        'SELECT * FROM approval_chain_steps WHERE chain_id = $1 ORDER BY step_order ASC',
+        [client.approval_chain_id]
+      );
+      const steps = stepsResult.rows;
+      if (client.approval_step_index >= steps.length) {
+        return res.status(400).json({ message: 'This client has already completed its approval chain.' });
+      }
+      const step = steps[client.approval_step_index];
+      const newStepIndex = client.approval_step_index + 1;
+      const isFinalStep = newStepIndex >= steps.length;
+
+      await pool.query(
+        'INSERT INTO approval_decisions (client_id, chain_id, step_id, decided_by, decision) VALUES ($1, $2, $3, $4, $5)',
+        [clientId, client.approval_chain_id, step.id, req.user.id, 'approved']
+      );
+
+      const result = await pool.query(
+        `UPDATE clients SET approval_step_index = $1, status = $2, rejection_reason = NULL WHERE id = $3 RETURNING ${SAFE_CLIENT_COLUMNS}`,
+        [newStepIndex, isFinalStep ? 'verified' : 'pending', clientId]
+      );
+
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+        [req.user.id, clientId, 'APPROVAL_CHAIN_STEP',
+          `Approved step "${step.label}" (${newStepIndex}/${steps.length}) for ${client.id_number}${isFinalStep ? ' — chain complete, client verified' : ' — awaiting further sign-off'}`]
+      );
+
+      if (isFinalStep) {
+        const workflow = await runReviewWorkflow({ clientId, outcome: 'verified' });
+        if (workflow.notify) {
+          const template = await pool.query(`SELECT id, subject, body FROM message_templates WHERE name = 'KYC Approved' LIMIT 1`);
+          if (template.rows.length > 0) {
+            const t = template.rows[0];
+            await sendToClient({ clientId, channel: 'email', subject: t.subject, body: t.body, templateId: t.id, sentBy: req.user.id });
+          }
+        }
+      }
+
+      return res.json({
+        message: isFinalStep ? 'Client verified — final approval step complete' : `Step ${newStepIndex} of ${steps.length} approved — awaiting further sign-off`,
+        client: result.rows[0],
+      });
+    }
+
     const result = await pool.query(
       `UPDATE clients SET status = 'verified', rejection_reason = NULL WHERE id = $1 RETURNING ${SAFE_CLIENT_COLUMNS}`,
       [clientId]
@@ -663,6 +739,13 @@ exports.rejectClient = async (req, res) => {
       [reason || 'Rejected on manual review', clientId]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Client not found' });
+
+    if (result.rows[0].approval_chain_id) {
+      await pool.query(
+        'INSERT INTO approval_decisions (client_id, chain_id, decided_by, decision, notes) VALUES ($1, $2, $3, $4, $5)',
+        [clientId, result.rows[0].approval_chain_id, req.user.id, 'rejected', reason || null]
+      );
+    }
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
