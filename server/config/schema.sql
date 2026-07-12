@@ -97,7 +97,8 @@ CREATE TABLE blocked_ips (
   ip_address VARCHAR(64) UNIQUE NOT NULL,
   reason VARCHAR(255),
   created_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT NOW(),
+  expires_at TIMESTAMP
 );
 
 -- ── Workflow Automation ────────────────────────────────────────────────────

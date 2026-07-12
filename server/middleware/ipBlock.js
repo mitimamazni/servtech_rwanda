@@ -16,7 +16,10 @@ module.exports = async (req, res, next) => {
     const ip = req.ip;
     if (isPrivateOrReserved(ip)) return next();
 
-    const result = await pool.query('SELECT 1 FROM blocked_ips WHERE ip_address = $1', [ip]);
+    const result = await pool.query(
+      'SELECT 1 FROM blocked_ips WHERE ip_address = $1 AND (expires_at IS NULL OR expires_at > NOW())',
+      [ip]
+    );
     if (result.rows.length > 0) {
       return res.status(403).json({ message: 'Access from this network has been blocked.' });
     }

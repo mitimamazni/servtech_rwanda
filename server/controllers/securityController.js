@@ -65,7 +65,8 @@ exports.getSecurityAlerts = async (req, res) => {
 exports.getBlockedIps = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT b.id, b.ip_address, b.reason, b.created_at, u.name as blocked_by
+      `SELECT b.id, b.ip_address, b.reason, b.created_at, b.expires_at, u.name as blocked_by,
+              (b.expires_at IS NOT NULL AND b.expires_at <= NOW()) AS is_expired
        FROM blocked_ips b LEFT JOIN users u ON b.created_by = u.id
        ORDER BY b.created_at DESC`
     );
@@ -77,7 +78,7 @@ exports.getBlockedIps = async (req, res) => {
 };
 
 exports.blockIp = async (req, res) => {
-  const { ip_address, reason } = req.body;
+  const { ip_address, reason, duration_minutes, confirm } = req.body;
   if (!ip_address) return res.status(400).json({ message: 'IP address is required' });
 
   const trimmed = ip_address.trim();
@@ -106,16 +107,47 @@ exports.blockIp = async (req, res) => {
     });
   }
 
+  let expiresAt = null;
+  if (duration_minutes) {
+    const minutes = Number(duration_minutes);
+    if (!Number.isFinite(minutes) || minutes <= 0) {
+      return res.status(400).json({ message: 'duration_minutes must be a positive number' });
+    }
+    expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+  }
+
   try {
+    // Shared-network warning: this IP is likely a home/office/campus/mobile
+    // connection shared by several people if other accounts have logged in
+    // successfully from it recently — blocking it would lock all of them out
+    // too, not just whoever prompted the block. Surface that before acting,
+    // rather than after someone reports they're locked out (see incident log).
+    if (!confirm) {
+      const sharedResult = await pool.query(
+        `SELECT DISTINCT la.email, u.name, u.role
+         FROM login_attempts la
+         LEFT JOIN users u ON u.email = la.email
+         WHERE la.ip_address = $1 AND la.success = true AND la.created_at > NOW() - INTERVAL '7 days'`,
+        [trimmed]
+      );
+      if (sharedResult.rows.length > 0) {
+        return res.json({
+          warning: true,
+          message: `${sharedResult.rows.length} account(s) logged in successfully from this IP in the last 7 days. If they're sharing this network, blocking it will lock them out too.`,
+          accounts: sharedResult.rows,
+        });
+      }
+    }
+
     const result = await pool.query(
-      `INSERT INTO blocked_ips (ip_address, reason, created_by) VALUES ($1, $2, $3)
-       ON CONFLICT (ip_address) DO UPDATE SET reason = $2
-       RETURNING id, ip_address, reason, created_at`,
-      [trimmed, reason || null, req.user.id]
+      `INSERT INTO blocked_ips (ip_address, reason, created_by, expires_at) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (ip_address) DO UPDATE SET reason = $2, expires_at = $4
+       RETURNING id, ip_address, reason, created_at, expires_at`,
+      [trimmed, reason || null, req.user.id, expiresAt]
     );
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [req.user.id, 'BLOCK_IP', `Blocked IP ${ip_address}${reason ? ` - reason: ${reason}` : ''}`]
+      [req.user.id, 'BLOCK_IP', `Blocked IP ${ip_address}${reason ? ` - reason: ${reason}` : ''}${expiresAt ? ` - expires ${expiresAt.toISOString()}` : ' - permanent'}`]
     );
     res.status(201).json({ message: 'IP blocked', blockedIp: result.rows[0] });
   } catch (err) {
