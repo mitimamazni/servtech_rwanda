@@ -1,6 +1,8 @@
 const pool = require('../config/db');
+const bcrypt = require('bcryptjs');
 const { validateImageDataUrl } = require('../utils/kyc');
 const { runRegistrationWorkflow } = require('../utils/workflowEngine');
+const { sendClientWelcomeEmail } = require('../utils/email');
 
 const MIN_AGE = 18;
 const ELDERLY_AGE = 80;
@@ -83,9 +85,12 @@ exports.verifyId = async (req, res) => {
 };
 
 exports.registerClient = async (req, res) => {
-  const { id_number, first_name, last_name, date_of_birth, gender, phone, district, elderly_confirmed, selfie_data, id_document_data } = req.body;
+  const { id_number, first_name, last_name, date_of_birth, gender, phone, district, email, elderly_confirmed, selfie_data, id_document_data } = req.body;
 
   try {
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required so the client can log in to their account.' });
+    }
     // Optional here — the agent has already confirmed identity in person —
     // but if provided, images still must be well-formed.
     const selfieError = validateImageDataUrl(selfie_data, { required: false, label: 'Selfie photo' });
@@ -154,15 +159,33 @@ exports.registerClient = async (req, res) => {
     }
     await pool.query("DELETE FROM clients WHERE id_number = $1 AND status = 'rejected'", [id_number]);
 
+    // Duplicate email check — every client needs a unique login account
+    const existingEmail = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingEmail.rows.length > 0) {
+      return res.status(400).json({ message: 'This email address is already in use.' });
+    }
+
     const idCheck = await pool.query('SELECT id FROM id_records WHERE id_number = $1 AND valid = true', [id_number]);
     const registryMatch = idCheck.rows.length > 0;
     const elderlyAssisted = age > ELDERLY_AGE;
 
+    // Generate a temporary password and create the client's login account,
+    // mirroring self-registration, so agent/admin-assisted clients can also
+    // log in afterwards instead of being left without any credentials.
+    const rawPassword = `ST@${first_name.charAt(0).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.floor(10 + Math.random() * 90)}!`;
+    const hashed = await bcrypt.hash(rawPassword, 10);
+
+    const userResult = await pool.query(
+      'INSERT INTO users (name, email, password, role, phone, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [`${first_name} ${last_name}`, email, hashed, 'client', phone, 'active']
+    );
+    const newUserId = userResult.rows[0].id;
+
     const insertResult = await pool.query(
-      `INSERT INTO clients (id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, selfie_data, id_document_data, kyc_submitted_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, $11, NOW())
+      `INSERT INTO clients (user_id, id_number, first_name, last_name, date_of_birth, gender, phone, district, status, elderly_assisted, registered_by, selfie_data, id_document_data, kyc_submitted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10, $11, $12, NOW())
        RETURNING id`,
-      [id_number, first_name, last_name, date_of_birth, gender, phone, district, elderlyAssisted, req.user.id, selfie_data || null, id_document_data || null]
+      [newUserId, id_number, first_name, last_name, date_of_birth, gender, phone, district, elderlyAssisted, req.user.id, selfie_data || null, id_document_data || null]
     );
     const newClientId = insertResult.rows[0].id;
 
@@ -193,7 +216,10 @@ exports.registerClient = async (req, res) => {
       [req.user.id, newClientId, 'REGISTER_CLIENT', `Registered client ${id_number} - status: ${status}${elderlyAssisted ? ' (elderly, identity confirmed in person)' : ''}`]
     );
 
-    res.status(201).json({ message: 'Client registered successfully', client: result.rows[0] });
+    // Send the client their login credentials, same as self-registration.
+    await sendClientWelcomeEmail({ name: `${first_name} ${last_name}`, email, password: rawPassword });
+
+    res.status(201).json({ message: 'Client registered successfully. Login credentials have been emailed to them.', client: result.rows[0] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

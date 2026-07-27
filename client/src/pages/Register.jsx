@@ -27,7 +27,7 @@ export default function Register() {
   const [verificationStatus, setVerificationStatus] = useState(null);
   const [elderly, setElderly] = useState(false);
   const [elderlyConfirmed, setElderlyConfirmed] = useState(false);
-  const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'', selfie_data: null, id_document_data: null });
+  const [form, setForm] = useState({ id_number:'', first_name:'', last_name:'', date_of_birth:'', gender:'', phone:'', district:'', email:'', selfie_data: null, id_document_data: null });
   const update = (f, v) => setForm(p => ({ ...p, [f]: v }));
   const dobMismatch = yearMismatch(form.id_number, form.date_of_birth);
 
@@ -94,10 +94,11 @@ export default function Register() {
   };
 
   const handleSubmit = async () => {
+    if (!form.email) { toast.error('Client email is required so they can log in'); return; }
     setSubmitting(true);
     try {
       await axios.post('/register', { ...form, elderly_confirmed: elderlyConfirmed });
-      toast.success('Client registered successfully');
+      toast.success('Client registered successfully - login credentials sent to their email');
       navigate(backPath);
     } catch (err) {
       if (err.response?.data?.elderlyConfirmRequired) {
@@ -229,7 +230,14 @@ export default function Register() {
           {step === 2 && (
             <div className="space-y-4">
               <h2 className="font-medium text-gray-800">Client Contact Information</h2>
-              <p className="text-sm text-gray-500">Enter the client's phone number and district of residence.</p>
+              <p className="text-sm text-gray-500">Enter the client's phone number, district, and email. A login account will be created and credentials sent to this email.</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-400">*</span></label>
+                <input type="email" value={form.email} onChange={e => update('email', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="client@email.com" />
+                <p className="text-xs text-gray-400 mt-1">We will send the client's login credentials to this email.</p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                 <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)}
@@ -277,7 +285,7 @@ export default function Register() {
                   {verificationStatus === 'verified' && <CheckCircle size={18} className="text-green-500 ml-auto" />}
                   {verificationStatus === 'not_found' && <AlertCircle size={18} className="text-amber-500 ml-auto" />}
                 </div>
-                {[['Date of Birth',form.date_of_birth],['Igitsina',form.gender],['Phone',form.phone],['District',form.district],['Registry Status',verificationStatus==='verified'?'Verified':'Pending review']].map(([label,value]) => (
+                {[['Date of Birth',form.date_of_birth],['Igitsina',form.gender],['Phone',form.phone],['Email',form.email],['District',form.district],['Registry Status',verificationStatus==='verified'?'Verified':'Pending review']].map(([label,value]) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-gray-500">{label}</span>
                     <span className="text-gray-800 font-medium">{value||'N/A'}</span>
@@ -286,6 +294,9 @@ export default function Register() {
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
                 You are registering this client as a <strong>{user?.role}</strong>. This action will be logged in the audit trail.
+              </div>
+              <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-3 text-sm text-primary-700">
+                A login account will be created for this client and their credentials will be sent to <strong>{form.email || 'the email provided'}</strong>.
               </div>
               {dobMismatch && (
                 <div className="flex items-center gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">
@@ -309,7 +320,7 @@ export default function Register() {
               <ArrowLeft size={14} /> Back
             </button>
             {step < STEPS.length-1 ? (
-              <button onClick={() => setStep(s=>s+1)} disabled={ocrLoading || verificationStatus==='underage'}
+              <button onClick={() => setStep(s=>s+1)} disabled={ocrLoading || verificationStatus==='underage' || (step===2 && !form.email)}
                 className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-5 py-2.5 rounded-lg flex items-center gap-1.5 disabled:opacity-60">
                 Continue <ArrowRight size={14} />
               </button>
