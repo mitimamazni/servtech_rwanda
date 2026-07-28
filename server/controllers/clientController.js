@@ -487,7 +487,21 @@ exports.getClientDocuments = async (req, res) => {
 // Admin or owning agent: update editable client details (CRUD - update)
 exports.updateClient = async (req, res) => {
   const { clientId } = req.params;
-  const { first_name, last_name, date_of_birth, gender, phone, district, sms_opt_in, email_opt_in } = req.body;
+  let { first_name, last_name, date_of_birth, gender, phone, district, sms_opt_in, email_opt_in } = req.body;
+
+  // COALESCE only skips a NULL, not an empty string, so without this an
+  // empty/whitespace field submitted from the edit form would silently
+  // blank out required client data.
+  const requiredFields = { first_name, last_name, date_of_birth, gender, phone, district };
+  for (const [field, value] of Object.entries(requiredFields)) {
+    if (value !== undefined && (value === null || !String(value).trim())) {
+      return res.status(400).json({ message: `${field.replace('_', ' ')} cannot be empty` });
+    }
+  }
+  if (first_name !== undefined) first_name = first_name.trim();
+  if (last_name !== undefined) last_name = last_name.trim();
+  if (phone !== undefined) phone = phone.trim();
+  if (district !== undefined) district = district.trim();
 
   try {
     const { error, message, client } = await findClientForAction(clientId, req.user);

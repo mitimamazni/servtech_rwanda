@@ -6,7 +6,6 @@ const {
   createAgent,
   deleteAgent,
   getAgentDetail,
-  selfRegisterAgent,
   updateAgent,
   setAgentStatus,
   resetAgentPassword,
@@ -17,8 +16,8 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-// Public — an aspiring agent applies for an account (pending admin approval)
-router.post('/agents/self-register', selfRegisterAgent);
+// Agent self-registration removed — agents are created by an admin only
+// (see registerClient point 2 / createAgent), self-signup was out of scope.
 
 router.get('/agents', auth, adminOnly, getAgents);
 router.get('/agents/:id', auth, adminOnly, getAgentDetail);

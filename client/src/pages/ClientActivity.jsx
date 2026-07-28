@@ -106,6 +106,11 @@ export default function ClientActivity() {
   const canManage = data?.client && (user?.role === 'admin' || (user?.role === 'agent' && data.client.agent_id === user.id));
 
   const handleSaveEdit = async () => {
+    const required = { 'First name': editForm.first_name, 'Last name': editForm.last_name, 'Phone': editForm.phone, 'District': editForm.district, 'Gender': editForm.gender, 'Date of birth': editForm.date_of_birth };
+    const missing = Object.entries(required).find(([, v]) => !v || !String(v).trim());
+    if (missing) {
+      toast.error(`${missing[0]} cannot be empty`); return;
+    }
     setBusy(true);
     try {
       await axios.put(`/clients/${clientId}`, editForm);
@@ -343,27 +348,27 @@ export default function ClientActivity() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-gray-100 text-sm">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">First name</label>
+                <label className="block text-xs text-gray-400 mb-1">First name <span className="text-red-400">*</span></label>
                 <input value={editForm.first_name} onChange={e => setEditForm({ ...editForm, first_name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!editForm.first_name?.trim() ? 'border-red-300' : 'border-gray-200'}`} />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Last name</label>
+                <label className="block text-xs text-gray-400 mb-1">Last name <span className="text-red-400">*</span></label>
                 <input value={editForm.last_name} onChange={e => setEditForm({ ...editForm, last_name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!editForm.last_name?.trim() ? 'border-red-300' : 'border-gray-200'}`} />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Phone</label>
+                <label className="block text-xs text-gray-400 mb-1">Phone <span className="text-red-400">*</span></label>
                 <input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!editForm.phone?.trim() ? 'border-red-300' : 'border-gray-200'}`} />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">District</label>
+                <label className="block text-xs text-gray-400 mb-1">District <span className="text-red-400">*</span></label>
                 <input value={editForm.district} onChange={e => setEditForm({ ...editForm, district: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!editForm.district?.trim() ? 'border-red-300' : 'border-gray-200'}`} />
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Igitsina</label>
+                <label className="block text-xs text-gray-400 mb-1">Igitsina <span className="text-red-400">*</span></label>
                 <select value={editForm.gender} onChange={e => setEditForm({ ...editForm, gender: e.target.value })}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
                   <option value="Gabo">Gabo</option>
@@ -371,9 +376,9 @@ export default function ClientActivity() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Date of birth</label>
+                <label className="block text-xs text-gray-400 mb-1">Date of birth <span className="text-red-400">*</span></label>
                 <input type="date" value={editForm.date_of_birth} onChange={e => setEditForm({ ...editForm, date_of_birth: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!editForm.date_of_birth?.trim() ? 'border-red-300' : 'border-gray-200'}`} />
               </div>
             </div>
           )}
@@ -383,7 +388,7 @@ export default function ClientActivity() {
             <div className="flex flex-wrap items-center gap-2 mt-5 pt-5 border-t border-gray-100">
               {editing ? (
                 <>
-                  <button onClick={handleSaveEdit} disabled={busy}
+                  <button onClick={handleSaveEdit} disabled={busy || !editForm.first_name?.trim() || !editForm.last_name?.trim() || !editForm.phone?.trim() || !editForm.district?.trim() || !editForm.date_of_birth?.trim()}
                     className="inline-flex items-center gap-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">
                     <Check size={14} /> Save changes
                   </button>

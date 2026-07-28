@@ -1,7 +1,6 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { sendAgentWelcomeEmail, sendAgentApprovedEmail } = require('../utils/email');
-const { verifyChallenge } = require('../utils/captcha');
 
 // GET all agents (includes pending applications and suspended accounts)
 exports.getAgents = async (req, res) => {
@@ -47,67 +46,19 @@ exports.getAgentDetail = async (req, res) => {
   }
 };
 
-// PUBLIC — an aspiring agent applies for an account. Account is created immediately
-// but with status 'pending', so it cannot log in until an admin approves it.
-exports.selfRegisterAgent = async (req, res) => {
-  const { name, email, phone, password, captcha_token, captcha_answer } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Name, email and password are required' });
-  }
-  if (password.length < 8) {
-    return res.status(400).json({ message: 'Password must be at least 8 characters' });
-  }
-
-  const captchaError = verifyChallenge(captcha_token, captcha_answer);
-  if (captchaError) return res.status(400).json({ message: captchaError });
-
-  try {
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) return res.status(400).json({ message: 'Email already in use' });
-
-    // Agents may not also hold a client (betting) account, to avoid conflicts
-    // of interest. Agents don't submit a national ID, so phone number is the
-    // only field shared between the two records that can catch this.
-    if (phone) {
-      const existingClient = await pool.query(
-        "SELECT id FROM clients WHERE phone = $1 AND status != 'rejected'",
-        [phone]
-      );
-      if (existingClient.rows.length > 0) {
-        return res.status(400).json({
-          message: 'This phone number is already registered to a client account. Agents cannot also hold a client account.',
-          clientConflict: true,
-        });
-      }
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-
-    const result = await pool.query(
-      `INSERT INTO users (name, email, password, role, phone, status)
-       VALUES ($1, $2, $3, 'agent', $4, 'pending') RETURNING id, name, email, phone, status, created_at`,
-      [name, email, hashed, phone || null]
-    );
-
-    await pool.query(
-      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
-      [result.rows[0].id, 'AGENT_SELF_REGISTER', `Agent application submitted: ${email}`]
-    );
-
-    res.status(201).json({
-      message: 'Application submitted. An administrator will review it before your account is activated.',
-      agent: result.rows[0],
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
 // Admin only — edit an agent's details (CRUD - update)
 exports.updateAgent = async (req, res) => {
   const { id } = req.params;
-  const { name, phone } = req.body;
+  let { name, phone } = req.body;
+
+  // COALESCE only skips a NULL, not an empty string, so without this check
+  // an empty/whitespace name field would silently blank out the agent's name.
+  if (name !== undefined && !name.trim()) {
+    return res.status(400).json({ message: 'Name cannot be empty' });
+  }
+  if (name !== undefined) name = name.trim();
+  if (phone !== undefined && phone !== null && !phone.trim()) phone = null;
+
   try {
     const result = await pool.query(
       `UPDATE users SET name = COALESCE($1, name), phone = COALESCE($2, phone)

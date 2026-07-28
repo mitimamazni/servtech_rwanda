@@ -127,6 +127,45 @@ exports.getMe = async (req, res) => {
   }
 };
 
+// Let a logged-in user (agent, admin, or client) set a new permanent password.
+// Used both for a routine password change and for agents/clients replacing
+// the temporary password they were issued at account creation.
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current and new password are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ message: 'New password must be at least 8 characters' });
+  }
+
+  try {
+    const result = await pool.query('SELECT id, email, password FROM users WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'User not found' });
+    const user = result.rows[0];
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: 'New password must be different from the current password' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user.id]);
+
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, action, details) VALUES ($1, $2, $3)',
+      [req.user.id, 'CHANGE_PASSWORD', `User ${user.email} changed their password`]
+    );
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Step 1 of enabling 2FA: generate a secret and return a scannable QR code.
 // The secret is stored but totp_enabled stays false until confirm2FA succeeds,
 // so an abandoned setup never locks anyone out.

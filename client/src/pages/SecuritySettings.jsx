@@ -14,9 +14,19 @@ export default function SecuritySettings() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [disableInput, setDisableInput] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
 
   const load = () => {
-    axios.get('/auth/me').then(r => setMe(r.data)).finally(() => setLoading(false));
+    setLoading(true);
+    axios.get('/auth/me')
+      .then(r => setMe(r.data))
+      .catch(err => {
+        toast.error(err.response?.data?.message || 'Failed to load security settings');
+      })
+      .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
@@ -62,6 +72,28 @@ export default function SecuritySettings() {
     }
   };
 
+  const changePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Fill in all password fields'); return;
+    }
+    if (newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters'); return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New password and confirmation do not match'); return;
+    }
+    setPwBusy(true);
+    try {
+      await axios.post('/auth/change-password', { currentPassword, newPassword });
+      toast.success('Password updated successfully');
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update password');
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
   const copySecret = () => {
     navigator.clipboard.writeText(setupData.secret);
     setCopied(true);
@@ -88,7 +120,34 @@ export default function SecuritySettings() {
 
       <div className="max-w-lg mx-auto px-6 py-8">
         <h1 className="text-lg font-semibold text-gray-800 mb-1">Security</h1>
-        <p className="text-sm text-gray-500 mb-6">Manage two-factor authentication for your account.</p>
+        <p className="text-sm text-gray-500 mb-6">Manage your password and two-factor authentication.</p>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+          <p className="font-medium text-gray-800 mb-1">Change password</p>
+          <p className="text-xs text-gray-500 mb-4">If you were given a temporary password, set a permanent one here.</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Current password</label>
+              <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">New password</label>
+              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">Confirm new password</label>
+              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
+            </div>
+            <button onClick={changePassword} disabled={pwBusy}
+              className="w-full bg-primary-600 hover:bg-primary-700 text-white text-sm py-2.5 rounded-lg font-medium disabled:opacity-60">
+              {pwBusy ? 'Updating...' : 'Update password'}
+            </button>
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           {me?.totp_enabled ? (

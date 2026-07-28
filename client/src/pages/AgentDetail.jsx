@@ -36,6 +36,9 @@ export default function AgentDetail() {
   useEffect(load, [id]);
 
   const handleSave = async () => {
+    if (!editForm.name.trim()) {
+      toast.error('Name cannot be empty'); return;
+    }
     setBusy(true);
     try {
       await axios.put(`/agents/${id}`, editForm);
@@ -112,9 +115,9 @@ export default function AgentDetail() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-gray-100 text-sm">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Name</label>
+                <label className="block text-xs text-gray-400 mb-1">Name <span className="text-red-400">*</span></label>
                 <input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!editForm.name.trim() ? 'border-red-300' : 'border-gray-200'}`} />
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Phone</label>
@@ -127,7 +130,7 @@ export default function AgentDetail() {
           <div className="flex flex-wrap items-center gap-2 mt-5 pt-5 border-t border-gray-100">
             {editing ? (
               <>
-                <button onClick={handleSave} disabled={busy}
+                <button onClick={handleSave} disabled={busy || !editForm.name.trim()}
                   className="inline-flex items-center gap-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">
                   <Check size={14} /> Save changes
                 </button>

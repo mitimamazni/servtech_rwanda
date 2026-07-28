@@ -32,7 +32,9 @@ exports.getOverview = async (req, res) => {
          GROUP BY district
          ORDER BY count DESC`
       ),
-      // Agent performance leaderboard
+      // Agent performance leaderboard — only active agents, since pending
+      // (not yet verified) and suspended agents shouldn't show up in
+      // performance analytics.
       pool.query(
         `SELECT u.id, u.name, u.status AS agent_status,
                 COUNT(c.id) AS total_registered,
@@ -41,7 +43,7 @@ exports.getOverview = async (req, res) => {
                 COUNT(c.id) FILTER (WHERE c.status = 'rejected') AS rejected_count
          FROM users u
          LEFT JOIN clients c ON c.registered_by = u.id
-         WHERE u.role = 'agent'
+         WHERE u.role = 'agent' AND u.status = 'active'
          GROUP BY u.id
          ORDER BY total_registered DESC, u.name ASC`
       ),

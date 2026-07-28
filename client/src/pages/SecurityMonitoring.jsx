@@ -65,7 +65,7 @@ export default function SecurityMonitoring() {
   // accounts — a second, more specific confirmation before actually blocking.
   const [pendingBlock, setPendingBlock] = useState(null); // { ip, reason, duration_minutes, message, accounts }
 
-  const load = () => {
+  const load = (isRetry = false) => {
     setLoading(true);
     Promise.allSettled([
       axios.get('/security/login-attempts'),
@@ -77,6 +77,16 @@ export default function SecurityMonitoring() {
       if (c.status === 'fulfilled') setBlockedIps(c.value.data.blockedIps);
 
       const failed = [a, b, c].filter(r => r.status === 'rejected').length;
+
+      // A slow cold-start backend can still be waking up even after the
+      // per-request retry in the axios interceptor. Rather than flash an
+      // alarming error toast every time that happens, give it one more
+      // moment before deciding this is a real failure.
+      if (failed > 0 && !isRetry) {
+        setTimeout(() => load(true), 4000);
+        return;
+      }
+
       if (failed === 3) toast.error('Failed to load security data');
       else if (failed > 0) toast.error('Some security data failed to load — showing what loaded successfully');
     }).finally(() => setLoading(false));

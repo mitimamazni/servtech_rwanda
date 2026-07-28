@@ -15,7 +15,6 @@ import SecuritySettings from './pages/SecuritySettings';
 import Register from './pages/Register';
 import ManualClientRegister from './pages/ManualClientRegister';
 import ClientSelfRegister from './pages/ClientSelfRegister';
-import AgentSelfRegister from './pages/AgentSelfRegister';
 import AuditLog from './pages/AuditLog';
 import AgentsPage from './pages/AgentsPage';
 import AgentDetail from './pages/AgentDetail';
@@ -51,7 +50,6 @@ function AppRoutes() {
     <Routes>
       <Route path="/login"        element={user ? dashboardRedirect() : <Login />} />
       <Route path="/register"     element={<ClientSelfRegister />} />
-      <Route path="/agent-signup" element={<AgentSelfRegister />} />
       <Route path="/"             element={user ? dashboardRedirect() : <Landing />} />
 
       {/* Admin only routes */}

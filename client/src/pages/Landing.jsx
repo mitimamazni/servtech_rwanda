@@ -30,9 +30,6 @@ export default function Landing() {
           <Link to="/register" className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-medium px-5 py-3 rounded-lg text-sm">
             <UserPlus size={16} /> Register as a client
           </Link>
-          <Link to="/agent-signup" className="inline-flex items-center gap-2 border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium px-5 py-3 rounded-lg text-sm bg-white">
-            <Users size={16} /> Apply to become an agent
-          </Link>
         </div>
       </header>
 
@@ -40,7 +37,7 @@ export default function Landing() {
         {[
           { icon: ShieldCheck, title: 'ID Verification', desc: 'Every registration is checked against the national identity registry before it is approved.' },
           { icon: Clock, title: 'Age Compliance', desc: 'Minors are automatically blocked, and elderly clients get an agent-assisted, in-person confirmation step.' },
-          { icon: Users, title: 'Agent Network', desc: 'Agents can apply online, register clients in the field, and manage their own portfolio once approved.' },
+          { icon: Users, title: 'Agent Network', desc: 'Agents register clients in the field and manage their own portfolio once onboarded by an administrator.' },
         ].map(({ icon: Icon, title, desc }) => (
           <div key={title} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
             <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center mb-4">
