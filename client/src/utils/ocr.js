@@ -43,24 +43,46 @@ export const extractIdData = async (file, onProgress) => {
   const text = result.data.text;
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  const idMatch = text.match(/\b1[12]\d{14}\b/);
+  // Rwandan ID numbers are printed with spaces between digit groups, e.g.
+  // "1 2002 8 0209268 0 33" rather than one contiguous 16-digit string.
+  // Match loosely (optional space before each digit) then strip the spaces out.
+  const idMatchRaw = text.match(/\b1\s?[12](?:\s?\d){14}\b/);
+  const idMatch = idMatchRaw ? idMatchRaw[0].replace(/\s+/g, '') : '';
+
   const dateMatch = text.match(/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})\b/);
 
-  const nameLines = lines.filter(line =>
-    /^[A-Z][a-zA-Z]+(\s[A-Z][a-zA-Z]+)+$/.test(line)
+  // Prefer the line directly under the "Amazina / Names" label - this is
+  // where the actual name sits on a standard Rwandan ID, and anchoring on
+  // the label avoids accidentally matching header text like "REPUBLIC OF
+  // RWANDA", which fits the same all-caps-words pattern.
+  const labelIdx = lines.findIndex(l => /amazina|\bnames?\b/i.test(l));
+  const HEADER_WORDS = /^(republika|republic|rwanda|indangamuntu|national|identity|card|of)$/i;
+
+  const genericNameLines = lines.filter(line =>
+    /^[A-Z][a-zA-Z]+(\s[A-Z][a-zA-Z]+)+$/.test(line) &&
+    !line.split(' ').every(w => HEADER_WORDS.test(w))
   );
+
+  let nameLine = '';
+  if (labelIdx !== -1 && lines[labelIdx + 1] && /^[A-Za-z\s]+$/.test(lines[labelIdx + 1])) {
+    nameLine = lines[labelIdx + 1];
+  } else if (genericNameLines.length > 0) {
+    nameLine = genericNameLines[0];
+  }
 
   let firstName = '';
   let lastName = '';
 
-  if (nameLines.length > 0) {
-    const parts = nameLines[0].split(' ');
-    firstName = parts[0] || '';
-    lastName = parts.slice(1).join(' ') || '';
+  if (nameLine) {
+    const parts = nameLine.trim().split(/\s+/);
+    // Rwandan IDs print family name(s) first and the given name last
+    // (e.g. "MITIMA MANZI Benjamin"), the reverse of "first word = first name".
+    firstName = parts[parts.length - 1] || '';
+    lastName = parts.slice(0, -1).join(' ') || '';
   }
 
   return {
-    id_number: idMatch ? idMatch[0] : '',
+    id_number: idMatch || '',
     first_name: firstName,
     last_name: lastName,
     date_of_birth: dateMatch
