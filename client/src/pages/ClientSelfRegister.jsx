@@ -157,11 +157,13 @@ export default function ClientSelfRegister() {
         const d = res.data.data;
         setForm(prev => ({
           ...prev,
-          first_name:    prev.first_name    || d.first_name,
-          last_name:     prev.last_name     || d.last_name,
-          date_of_birth: prev.date_of_birth || d.date_of_birth?.split('T')[0],
-          gender:        prev.gender        || d.gender,
-          district:      prev.district      || d.district,
+          // Registry data is authoritative - prefer it over an OCR guess that
+          // may have mis-parsed the name/DOB off the card image.
+          first_name:    d.first_name    || prev.first_name,
+          last_name:     d.last_name     || prev.last_name,
+          date_of_birth: d.date_of_birth?.split('T')[0] || prev.date_of_birth,
+          gender:        d.gender        || prev.gender,
+          district:      d.district      || prev.district,
         }));
         toast.success('All details auto-filled from registry');
       }

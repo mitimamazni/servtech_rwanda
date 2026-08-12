@@ -78,15 +78,17 @@ export default function Register() {
         setVerificationStatus('verified');
         setElderly(!!res.data.elderly);
         const d = res.data.data;
+        toast.success('ID verified against national registry - all fields auto-filled');
         setForm(prev => ({
           ...prev,
-          first_name:    prev.first_name    || d.first_name,
-          last_name:     prev.last_name     || d.last_name,
-          date_of_birth: prev.date_of_birth || d.date_of_birth?.split('T')[0],
-          gender:        prev.gender        || d.gender,
-          district:      prev.district      || d.district,
+          // Registry data is authoritative - prefer it over an OCR guess that
+          // may have mis-parsed the name/DOB off the card image.
+          first_name:    d.first_name    || prev.first_name,
+          last_name:     d.last_name     || prev.last_name,
+          date_of_birth: d.date_of_birth?.split('T')[0] || prev.date_of_birth,
+          gender:        d.gender        || prev.gender,
+          district:      d.district      || prev.district,
         }));
-        toast.success('ID verified against national registry - all fields auto-filled');
         if (res.data.elderly) toast('Client is over 80 - identity confirmation will be required before submitting', { icon: '⚠️' });
       }
     } catch (err) {
