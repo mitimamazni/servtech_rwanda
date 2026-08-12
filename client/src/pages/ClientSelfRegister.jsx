@@ -118,6 +118,14 @@ export default function ClientSelfRegister() {
       } else {
         toast('Scan complete - please review the fields below', { icon: '⚠️' });
       }
+
+      // OCR can only read what's printed and legible on the card - it can't reliably
+      // pick up gender or district. Once we have an ID number, check it against the
+      // national registry right away so those fields (and name/DOB) fill in automatically
+      // instead of waiting for a separate manual "Verify" click.
+      if (extracted.id_number) {
+        await handleVerifyId(extracted.id_number);
+      }
     } catch {
       const newAttempts = attempts + 1;
       setAttempts(newAttempts);
@@ -128,12 +136,13 @@ export default function ClientSelfRegister() {
     }
   };
 
-  const handleVerifyId = async () => {
-    if (!form.id_number) return;
+  const handleVerifyId = async (idOverride) => {
+    const idToVerify = idOverride || form.id_number;
+    if (!idToVerify) return;
     setVerifyingId(true);
     setVerificationStatus(null);
     try {
-      const birthYear = parseInt(form.id_number.substring(1, 5));
+      const birthYear = parseInt(idToVerify.substring(1, 5));
       const age = new Date().getFullYear() - birthYear;
       if (age < 18) {
         setVerificationStatus('underage');
@@ -142,7 +151,7 @@ export default function ClientSelfRegister() {
         if (newAttempts >= MAX_ATTEMPTS) setTooManyAttempts(true);
         return;
       }
-      const res = await axios.post('/verify-id', { id_number: form.id_number, self: true });
+      const res = await axios.post('/verify-id', { id_number: idToVerify, self: true });
       if (res.data.verified) {
         setVerificationStatus('registry_found');
         const d = res.data.data;
@@ -154,7 +163,7 @@ export default function ClientSelfRegister() {
           gender:        prev.gender        || d.gender,
           district:      prev.district      || d.district,
         }));
-        toast.success('Details auto-filled from registry');
+        toast.success('All details auto-filled from registry');
       }
     } catch (err) {
       if (err.response?.data?.underAge) {
@@ -165,7 +174,7 @@ export default function ClientSelfRegister() {
         toast.error(err.response.data.message, { duration: 6000 });
       } else {
         setVerificationStatus('not_found');
-        toast('ID not found - please fill in your details below', { icon: '⚠️' });
+        toast('ID not found in registry - please fill in gender and district manually', { icon: '⚠️' });
       }
     } finally {
       setVerifyingId(false);

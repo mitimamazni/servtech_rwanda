@@ -16,6 +16,8 @@ INSERT INTO id_records (id_number, first_name, last_name, date_of_birth, gender,
 -- Over-80 records, for exercising the agent-assisted identity confirmation flow
 ('1194000198765432', 'Vestine', 'Nyirahabimana', '1940-04-20', 'Gore', 'Huye'),
 ('1193800112349876', 'Anastase','Sibomana',      '1938-11-11', 'Gabo', 'Nyanza');
+('1200280209268033', 'MITIMA MANZI Benjamin', '2002-07-13', 'Gabo', 'Kicukiro');
+
 
 -- Users: Admin, Agent, and demo Clients
 -- Admin: ServTech@Admin2026!

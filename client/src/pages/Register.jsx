@@ -57,15 +57,23 @@ export default function Register() {
       extracted.confidence > 70
         ? toast.success(`Scanned (${extracted.confidence.toFixed(0)}% confidence)`)
         : toast('Scan complete - please review and correct the fields below', { icon: '⚠️' });
+
+      // OCR can't reliably read gender/district off the card layout, so as soon as
+      // we have a plausible ID number, look it up against the national registry
+      // to auto-fill those two fields (and confirm/override name + DOB) in one pass.
+      if (extracted.id_number) {
+        await handleVerify(extracted.id_number);
+      }
     } catch { toast.error('OCR failed - please fill in manually'); }
     finally { setOcrLoading(false); }
   };
 
-  const handleVerify = async () => {
-    if (!form.id_number) { toast.error('Enter an ID number first'); return; }
+  const handleVerify = async (idOverride) => {
+    const idToVerify = idOverride || form.id_number;
+    if (!idToVerify) { toast.error('Enter an ID number first'); return; }
     setVerifying(true); setVerificationStatus(null);
     try {
-      const res = await axios.post('/verify-id', { id_number: form.id_number });
+      const res = await axios.post('/verify-id', { id_number: idToVerify });
       if (res.data.verified) {
         setVerificationStatus('verified');
         setElderly(!!res.data.elderly);
@@ -78,7 +86,7 @@ export default function Register() {
           gender:        prev.gender        || d.gender,
           district:      prev.district      || d.district,
         }));
-        toast.success('ID verified against national registry');
+        toast.success('ID verified against national registry - all fields auto-filled');
         if (res.data.elderly) toast('Client is over 80 - identity confirmation will be required before submitting', { icon: '⚠️' });
       }
     } catch (err) {
@@ -88,7 +96,7 @@ export default function Register() {
       } else {
         setVerificationStatus('not_found');
         setElderly(!!err.response?.data?.elderly);
-        toast('ID not found - registration will be marked as pending', { icon: '⚠️' });
+        toast('ID not found in registry - gender and district need to be entered manually', { icon: '⚠️' });
       }
     } finally { setVerifying(false); }
   };
