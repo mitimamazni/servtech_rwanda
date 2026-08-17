@@ -17,6 +17,8 @@ const analyticsRoutes = require('./routes/analytics');
 const securityRoutes = require('./routes/security');
 const automationRoutes = require('./routes/automation');
 const communicationRoutes = require('./routes/communication');
+const bettingRoutes = require('./routes/betting');
+const ticketRoutes = require('./routes/tickets');
 
 const app = express();
 
@@ -70,6 +72,8 @@ app.use('/api', analyticsRoutes);
 app.use('/api', securityRoutes);
 app.use('/api', automationRoutes);
 app.use('/api', communicationRoutes);
+app.use('/api', bettingRoutes);
+app.use('/api', ticketRoutes);
 
 app.get('/', (req, res) => res.json({ message: 'ServTech Rwanda API is running' }));
 

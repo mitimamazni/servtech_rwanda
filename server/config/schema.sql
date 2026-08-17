@@ -55,21 +55,87 @@ CREATE TABLE clients (
   sanctions_match_name VARCHAR(200),
   sms_opt_in BOOLEAN DEFAULT true,
   email_opt_in BOOLEAN DEFAULT true,
+  -- Sportsbook wallet — simulated balance clients stake bets from (topped up
+  -- by an agent/admin; no real payment processing).
+  wallet_balance DECIMAL(10,2) NOT NULL DEFAULT 10000,
   registered_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW(),
   terms_accepted_at TIMESTAMP,
   terms_version VARCHAR(20)
 );
 
--- Betting activity (mock data for demo)
+-- Sportsbook: matches clients can bet on
+CREATE TABLE matches (
+  id SERIAL PRIMARY KEY,
+  sport VARCHAR(30) NOT NULL DEFAULT 'football',
+  league VARCHAR(100),
+  home_team VARCHAR(100) NOT NULL,
+  away_team VARCHAR(100) NOT NULL,
+  start_time TIMESTAMP NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'live', 'finished', 'cancelled')),
+  odds_home DECIMAL(6,2) NOT NULL,
+  odds_draw DECIMAL(6,2),
+  odds_away DECIMAL(6,2) NOT NULL,
+  result VARCHAR(10) CHECK (result IN ('home', 'draw', 'away')),
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_matches_status ON matches(status);
+
+-- Client wallet transactions (simulated top-ups/stakes/payouts — no real payment processing)
+CREATE TABLE wallet_transactions (
+  id SERIAL PRIMARY KEY,
+  client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+  type VARCHAR(20) NOT NULL CHECK (type IN ('topup', 'bet_stake', 'bet_payout', 'adjustment')),
+  amount DECIMAL(10,2) NOT NULL,
+  balance_after DECIMAL(10,2) NOT NULL,
+  reference VARCHAR(150),
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Betting activity — bets placed against a match (mock money, real gameplay flow)
 CREATE TABLE betting_activity (
   id SERIAL PRIMARY KEY,
   client_id INTEGER REFERENCES clients(id),
+  match_id INTEGER REFERENCES matches(id),
   game VARCHAR(100) NOT NULL,
+  selection VARCHAR(10) CHECK (selection IN ('home', 'draw', 'away')),
+  odds DECIMAL(6,2),
+  potential_payout DECIMAL(10,2),
   amount DECIMAL(10,2) NOT NULL,
   outcome VARCHAR(20) CHECK (outcome IN ('win', 'loss', 'pending')),
   placed_at TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX idx_betting_activity_match_id ON betting_activity(match_id);
+
+-- ── Support Tickets ─────────────────────────────────────────────────────────
+-- Client-raised support tickets (registration/betting/wallet/account issues),
+-- handled by agents/admins — this is the "ticket handling" ServTech does
+-- day-to-day for the Winner platform (QA + support), modeled at KYC-app scale.
+CREATE TABLE support_tickets (
+  id SERIAL PRIMARY KEY,
+  client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+  subject VARCHAR(200) NOT NULL,
+  category VARCHAR(30) NOT NULL DEFAULT 'general' CHECK (category IN ('registration', 'betting', 'wallet', 'account', 'general')),
+  priority VARCHAR(10) NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+  status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+  assigned_to INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_support_tickets_status ON support_tickets(status);
+CREATE INDEX idx_support_tickets_client_id ON support_tickets(client_id);
+
+CREATE TABLE ticket_messages (
+  id SERIAL PRIMARY KEY,
+  ticket_id INTEGER REFERENCES support_tickets(id) ON DELETE CASCADE,
+  sender_id INTEGER REFERENCES users(id),
+  sender_role VARCHAR(20) NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_ticket_messages_ticket_id ON ticket_messages(ticket_id);
 
 -- Audit logs
 CREATE TABLE audit_logs (
@@ -250,3 +316,16 @@ INSERT INTO message_templates (name, channel, subject, body) VALUES
   ('KYC Rejected',        'email', 'Action needed on your ServTech Rwanda application', 'Hello {first_name}, we were unable to verify your application. Reason: {rejection_reason}. Please log in and resubmit your documents.'),
   ('Welcome SMS',         'sms',   NULL, 'Welcome to ServTech Rwanda, {first_name}! Your registration was received and is being reviewed.'),
   ('Verification Reminder','sms',  NULL, 'Hi {first_name}, your ServTech Rwanda verification is still pending. Please check your email for any required action.');
+
+-- Seed a handful of upcoming matches so the sportsbook isn't empty on first load
+INSERT INTO matches (sport, league, home_team, away_team, start_time, status, odds_home, odds_draw, odds_away) VALUES
+  ('football', 'Rwanda Premier League', 'APR FC',        'Rayon Sports',   NOW() + INTERVAL '1 day',  'upcoming', 2.10, 3.20, 3.40),
+  ('football', 'Rwanda Premier League', 'Police FC',     'AS Kigali',      NOW() + INTERVAL '2 days', 'upcoming', 1.90, 3.30, 3.90),
+  ('football', 'English Premier League','Arsenal',       'Chelsea',        NOW() + INTERVAL '1 day',  'upcoming', 2.05, 3.40, 3.20),
+  ('football', 'English Premier League','Man City',      'Liverpool',      NOW() + INTERVAL '3 days', 'upcoming', 2.20, 3.50, 3.00),
+  ('football', 'La Liga',               'Real Madrid',   'Barcelona',      NOW() + INTERVAL '4 days', 'upcoming', 2.15, 3.60, 3.05),
+  ('football', 'Champions League',      'Bayern Munich', 'PSG',            NOW() + INTERVAL '5 days', 'upcoming', 2.00, 3.70, 3.50),
+  ('basketball','NBA',                  'Lakers',        'Celtics',        NOW() + INTERVAL '1 day',  'upcoming', 1.85, NULL, 1.95),
+  ('basketball','NBA',                  'Warriors',      'Nuggets',        NOW() + INTERVAL '2 days', 'upcoming', 1.75, NULL, 2.05),
+  ('boxing',    'World Title',          'Fighter A',     'Fighter B',      NOW() + INTERVAL '6 days', 'upcoming', 1.60, NULL, 2.30),
+  ('football', 'Rwanda Premier League', 'Kiyovu Sports', 'Mukura Victory', NOW() + INTERVAL '6 hours','upcoming', 2.30, 3.10, 3.00);

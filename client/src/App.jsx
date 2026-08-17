@@ -19,6 +19,11 @@ import AuditLog from './pages/AuditLog';
 import AgentsPage from './pages/AgentsPage';
 import AgentDetail from './pages/AgentDetail';
 import ClientActivity from './pages/ClientActivity';
+import Sportsbook from './pages/Sportsbook';
+import AdminSportsbook from './pages/AdminSportsbook';
+import Tickets from './pages/Tickets';
+import AdminTickets from './pages/AdminTickets';
+import TicketThread from './pages/TicketThread';
 
 const PrivateRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -64,6 +69,9 @@ function AppRoutes() {
       <Route path="/admin/security"                 element={<PrivateRoute roles={['admin']}><SecurityMonitoring /></PrivateRoute>} />
       <Route path="/admin/automation"               element={<PrivateRoute roles={['admin']}><WorkflowAutomation /></PrivateRoute>} />
       <Route path="/admin/communications"           element={<PrivateRoute roles={['admin']}><Communications /></PrivateRoute>} />
+      <Route path="/admin/sportsbook"                element={<PrivateRoute roles={['admin']}><AdminSportsbook /></PrivateRoute>} />
+      <Route path="/admin/tickets"                   element={<PrivateRoute roles={['admin', 'agent']}><AdminTickets /></PrivateRoute>} />
+      <Route path="/admin/tickets/:id"                element={<PrivateRoute roles={['admin', 'agent']}><TicketThread /></PrivateRoute>} />
       <Route path="/security"                       element={<PrivateRoute roles={['admin', 'agent']}><SecuritySettings /></PrivateRoute>} />
 
       {/* Agent only routes — no agent-register route for agents */}
@@ -74,6 +82,9 @@ function AppRoutes() {
       {/* Client only routes */}
       <Route path="/client/dashboard" element={<PrivateRoute roles={['client']}><ClientDashboard /></PrivateRoute>} />
       <Route path="/client/resubmit" element={<PrivateRoute roles={['client']}><ClientResubmit /></PrivateRoute>} />
+      <Route path="/client/sportsbook" element={<PrivateRoute roles={['client']}><Sportsbook /></PrivateRoute>} />
+      <Route path="/client/tickets" element={<PrivateRoute roles={['client']}><Tickets /></PrivateRoute>} />
+      <Route path="/client/tickets/:id" element={<PrivateRoute roles={['client']}><TicketThread /></PrivateRoute>} />
 
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>

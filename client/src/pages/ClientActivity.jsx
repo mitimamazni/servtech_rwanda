@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, BadgeCheck, Clock, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Loader,
   Pencil, Ban, PlayCircle, Check, X, Image as ImageIcon, ShieldAlert,
-  UserPlus, RefreshCw, Mail, MessageSquare, Zap, History,
+  UserPlus, RefreshCw, Mail, MessageSquare, Zap, History, Wallet, Plus,
 } from 'lucide-react';
 
 const REJECTION_REASONS = [
@@ -77,6 +77,9 @@ export default function ClientActivity() {
   const [rejectReasonOther, setRejectReasonOther] = useState('');
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [toppingUp, setToppingUp] = useState(false);
   const [documents, setDocuments] = useState(null);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
@@ -172,6 +175,23 @@ export default function ClientActivity() {
       toast.error(err.response?.data?.message || 'Action failed');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleTopup = async () => {
+    const amount = parseFloat(topupAmount);
+    if (!amount || amount <= 0) return toast.error('Enter a valid amount');
+    setToppingUp(true);
+    try {
+      await axios.post(`/clients/${clientId}/wallet/topup`, { amount });
+      toast.success(`Wallet topped up by ${amount.toLocaleString()} RWF`);
+      setTopupOpen(false);
+      setTopupAmount('');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Top-up failed');
+    } finally {
+      setToppingUp(false);
     }
   };
 
@@ -455,6 +475,33 @@ export default function ClientActivity() {
           )}
         </div>
 
+        {/* Wallet */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg p-2.5 bg-primary-600"><Wallet size={18} className="text-white" /></div>
+            <div>
+              <p className="text-lg font-semibold text-gray-800">{parseInt(client?.wallet_balance || 0).toLocaleString()} RWF</p>
+              <p className="text-xs text-gray-500">Wallet Balance</p>
+            </div>
+          </div>
+          {topupOpen ? (
+            <div className="flex items-center gap-2">
+              <input type="number" min="1" autoFocus value={topupAmount} onChange={e => setTopupAmount(e.target.value)}
+                placeholder="Amount (RWF)" className="w-36 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <button onClick={handleTopup} disabled={toppingUp}
+                className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm px-3 py-1.5 rounded-lg">
+                {toppingUp ? 'Adding...' : 'Confirm'}
+              </button>
+              <button onClick={() => { setTopupOpen(false); setTopupAmount(''); }} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+          ) : (
+            <button onClick={() => setTopupOpen(true)}
+              className="inline-flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg">
+              <Plus size={14} /> Top Up Wallet
+            </button>
+          )}
+        </div>
+
         {/* Betting stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
@@ -485,7 +532,7 @@ export default function ClientActivity() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 text-left">
-                    {['Game', 'Amount (RWF)', 'Outcome', 'Date'].map(h => (
+                    {['Game', 'Selection', 'Amount (RWF)', 'Outcome', 'Date'].map(h => (
                       <th key={h} className="px-5 py-3 text-xs font-medium text-gray-400 uppercase">{h}</th>
                     ))}
                   </tr>
@@ -494,6 +541,7 @@ export default function ClientActivity() {
                   {bets.map(bet => (
                     <tr key={bet.id} className="hover:bg-gray-50">
                       <td className="px-5 py-3 font-medium text-gray-800">{bet.game}</td>
+                      <td className="px-5 py-3 text-gray-500 capitalize">{bet.selection ? `${bet.selection} @ ${parseFloat(bet.odds).toFixed(2)}` : '—'}</td>
                       <td className="px-5 py-3 text-gray-700">{parseInt(bet.amount).toLocaleString()}</td>
                       <td className="px-5 py-3"><OutcomeBadge outcome={bet.outcome} /></td>
                       <td className="px-5 py-3 text-gray-500 text-xs">

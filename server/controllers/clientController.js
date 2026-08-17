@@ -22,7 +22,7 @@ const yearMismatch = (id_number, date_of_birth) => {
 const SAFE_CLIENT_COLUMNS = `
   id, user_id, id_number, first_name, last_name, date_of_birth, gender, phone,
   district, status, rejection_reason, is_active, elderly_assisted, registered_by,
-  created_at, kyc_submitted_at,
+  wallet_balance, created_at, kyc_submitted_at,
   face_match_score, document_authenticity_score, sanctions_flag, sanctions_match_name,
   sms_opt_in, email_opt_in, approval_chain_id, approval_step_index,
   (selfie_data IS NOT NULL) AS has_selfie,
@@ -220,7 +220,7 @@ exports.getClientDashboard = async (req, res) => {
     const clientResult = await pool.query(
       `SELECT c.id, c.user_id, c.id_number, c.first_name, c.last_name, c.date_of_birth,
               c.gender, c.phone, c.district, c.status, c.rejection_reason, c.is_active,
-              c.elderly_assisted, c.registered_by, c.created_at, u.email
+              c.elderly_assisted, c.registered_by, c.created_at, c.wallet_balance, u.email
        FROM clients c
        JOIN users u ON c.user_id = u.id
        WHERE c.user_id = $1`,
@@ -268,7 +268,7 @@ exports.getClientActivity = async (req, res) => {
     const clientResult = await pool.query(
       `SELECT c.id, c.user_id, c.id_number, c.first_name, c.last_name, c.date_of_birth,
               c.gender, c.phone, c.district, c.status, c.rejection_reason, c.is_active,
-              c.elderly_assisted, c.registered_by, c.created_at, c.kyc_submitted_at,
+              c.elderly_assisted, c.registered_by, c.created_at, c.kyc_submitted_at, c.wallet_balance,
               c.sms_opt_in, c.email_opt_in, c.approval_chain_id, c.approval_step_index,
               (c.selfie_data IS NOT NULL) AS has_selfie,
               (c.id_document_data IS NOT NULL) AS has_id_document,

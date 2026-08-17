@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, BadgeCheck, Clock, XCircle,
   ShieldCheck, UserCog, BarChart2, Loader, ClipboardList, Camera,
   ShieldAlert as ShieldAlert2, Workflow as Workflow2, Mail as Mail2,
-  Download, Ban, PlayCircle, X as XIcon,
+  Download, Ban, PlayCircle, X as XIcon, Trophy as Trophy2, LifeBuoy as LifeBuoy2,
 } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -146,6 +146,12 @@ export default function AdminDashboard() {
         </button>
         <button onClick={() => navigate('/admin/communications')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Mail2 size={15} /> Messages
+        </button>
+        <button onClick={() => navigate('/admin/sportsbook')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <Trophy2 size={15} /> Sportsbook
+        </button>
+        <button onClick={() => navigate('/admin/tickets')} className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <LifeBuoy2 size={15} /> Tickets
         </button>
         <button onClick={() => navigate('/admin/register')} className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={15} /> New Client

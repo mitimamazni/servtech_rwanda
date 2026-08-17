@@ -4,6 +4,40 @@
 
 ---
 
+## ⚠️ August 2026 update — read before deploying
+
+Added a Phase 1 sportsbook module — clients can now browse matches and place real
+(simulated-money) bets, not just have mock betting history sitting in the database.
+**If you already have a deployed Supabase database, run the migration before
+deploying the new code:**
+
+```bash
+psql "$DATABASE_URL" -f server/config/migration_v11.sql
+```
+
+This adds the `matches` table (seeded with 10 fake fixtures so it isn't empty),
+`clients.wallet_balance` (defaults every existing client to 10,000 RWF), the
+`wallet_transactions` table, and `match_id` / `selection` / `odds` /
+`potential_payout` columns on `betting_activity` so bets placed through the new
+sportsbook show up in the same dashboards that already read from that table. If
+you're setting up a fresh database instead, `schema.sql` already includes
+everything.
+
+Summary of what changed:
+- **Client sportsbook** (`/client/sportsbook`) — browse open matches, pick an
+  outcome, place a bet from your wallet balance. Requires a `verified`, active
+  account.
+- **Wallet** — every client has a simulated wallet balance shown on their
+  dashboard. Agents/admins can top it up from the client activity page (no real
+  payment processing — this is a demo balance).
+- **Admin sportsbook management** (`/admin/sportsbook`) — create matches, settle
+  a result (auto-resolves every pending bet on that match and credits winners),
+  and see every bet placed across all clients.
+- Everything above is logged to the existing audit trail (`PLACE_BET`,
+  `CREATE_MATCH`, `SETTLE_MATCH`, `WALLET_TOPUP`).
+
+---
+
 ## ⚠️ July 2026 update — read before deploying
 
 This pass fixed the outstanding bugs and added agent self-registration, client/agent

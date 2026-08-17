@@ -7,7 +7,7 @@ import { SkeletonCard } from '../components/Skeleton';
 import {
   Users, UserCheck, UserX, CalendarDays, Plus,
   Search, ChevronLeft, ChevronRight, BadgeCheck,
-  Clock, XCircle, Loader
+  Clock, XCircle, Loader, LifeBuoy
 } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -61,6 +61,10 @@ export default function AgentDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar>
+        <button onClick={() => navigate('/admin/tickets')}
+          className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <LifeBuoy size={14} /> Tickets
+        </button>
         <button onClick={() => navigate('/agent/register')}
           className="bg-primary-600 hover:bg-primary-700 text-white text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={15} /> New Client

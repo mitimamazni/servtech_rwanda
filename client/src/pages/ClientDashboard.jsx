@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, RefreshCw } from 'lucide-react';
+import { BadgeCheck, Clock, TrendingUp, TrendingDown, DollarSign, Target, AlertTriangle, RefreshCw, Trophy, Wallet, LifeBuoy } from 'lucide-react';
 
 const OutcomeBadge = ({ outcome }) => {
   const map = {
@@ -45,9 +45,39 @@ export default function ClientDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <Navbar>
+        <button onClick={() => navigate('/client/tickets')}
+          className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <LifeBuoy size={14} /> Support
+        </button>
+        {client?.status === 'verified' && (
+          <button onClick={() => navigate('/client/sportsbook')}
+            className="text-sm text-white bg-primary-600 hover:bg-primary-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+            <Trophy size={14} /> Sportsbook
+          </button>
+        )}
+      </Navbar>
 
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+
+        {/* Wallet + sportsbook CTA */}
+        {client?.status === 'verified' && (
+          <div className="bg-primary-600 rounded-2xl shadow-sm p-6 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/15 rounded-xl p-3">
+                <Wallet size={22} className="text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-primary-100">Wallet Balance</p>
+                <p className="text-xl font-semibold text-white">{parseInt(client?.wallet_balance || 0).toLocaleString()} RWF</p>
+              </div>
+            </div>
+            <button onClick={() => navigate('/client/sportsbook')}
+              className="inline-flex items-center gap-1.5 bg-white text-primary-700 hover:bg-primary-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
+              <Trophy size={15} /> Browse Matches & Bet
+            </button>
+          </div>
+        )}
 
         {/* Profile card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -145,6 +175,7 @@ export default function ClientDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-800">{bet.game}</p>
                     <p className="text-xs text-gray-400">
+                      {bet.selection && <span className="capitalize">{bet.selection} @ {parseFloat(bet.odds).toFixed(2)} · </span>}
                       {new Date(bet.placed_at).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
