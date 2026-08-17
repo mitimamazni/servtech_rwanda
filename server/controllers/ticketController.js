@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { sendToClient } = require('../utils/notify');
 
 const CATEGORIES = ['registration', 'betting', 'wallet', 'account', 'general'];
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
@@ -38,6 +39,18 @@ exports.createTicket = async (req, res) => {
       );
 
       await pool.query('COMMIT');
+
+      // Confirmation email — best-effort, doesn't block the response. Same
+      // graceful-skip behavior as the rest of the app: agent-registered
+      // clients have no email on file and this just logs 'failed' for that.
+      sendToClient({
+        clientId,
+        channel: 'email',
+        subject: `We've received your ticket: ${subject}`,
+        body: `Hi {first_name},\n\nThanks for reaching out. Your ticket "${subject}" (#${ticket.id}) has been received and a member of our team will respond shortly.\n\nYour message:\n"${message}"\n\n— ServTech Rwanda Support`,
+        sentBy: req.user.id,
+      }).catch(err => console.error('Ticket confirmation email failed:', err));
+
       res.status(201).json(ticket);
     } catch (txErr) {
       await pool.query('ROLLBACK');
@@ -169,6 +182,17 @@ exports.addMessage = async (req, res) => {
       [req.user.id, ticket.client_id, 'TICKET_REPLY', `Replied to ticket #${ticket.id}`]
     );
 
+    // Notify the client by email when staff (not the client themselves) reply.
+    if (req.user.role !== 'client') {
+      sendToClient({
+        clientId: ticket.client_id,
+        channel: 'email',
+        subject: `New reply on your ticket: ${ticket.subject}`,
+        body: `Hi {first_name},\n\nYou have a new reply on your support ticket "${ticket.subject}" (#${ticket.id}):\n\n"${message.trim()}"\n\nLog in to your ServTech Rwanda account to continue the conversation.\n\n— ServTech Rwanda Support`,
+        sentBy: req.user.id,
+      }).catch(err => console.error('Ticket reply email failed:', err));
+    }
+
     res.status(201).json({ message: 'Reply added', status: nextStatus });
   } catch (err) {
     console.error(err);
@@ -194,6 +218,16 @@ exports.updateStatus = async (req, res) => {
       'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
       [req.user.id, ticket.client_id, 'TICKET_STATUS', `Ticket #${ticket.id} status → ${status}`]
     );
+
+    if (status === 'resolved') {
+      sendToClient({
+        clientId: ticket.client_id,
+        channel: 'email',
+        subject: `Your ticket has been resolved: ${ticket.subject}`,
+        body: `Hi {first_name},\n\nYour support ticket "${ticket.subject}" (#${ticket.id}) has been marked as resolved. If the issue isn't fully sorted, just reply on the ticket and we'll reopen it.\n\n— ServTech Rwanda Support`,
+        sentBy: req.user.id,
+      }).catch(err => console.error('Ticket resolved email failed:', err));
+    }
 
     res.json({ status });
   } catch (err) {
