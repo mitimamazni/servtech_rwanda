@@ -13,8 +13,15 @@ export default {
           500: '#6366f1',
           600: '#4f46e5',
           700: '#4338ca',
-        }
-      }
+        },
+        ink: '#15162b',
+        paper: '#f7f7fb',
+      },
+      fontFamily: {
+        display: ['"Space Grotesk"', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
     },
   },
   plugins: [],
