@@ -34,7 +34,7 @@ exports.placeBet = async (req, res) => {
 
   try {
     const clientResult = await pool.query(
-      `SELECT id, status, is_active, wallet_balance FROM clients WHERE user_id = $1`,
+      `SELECT id, status, is_active, wallet_balance, self_exclusion_until FROM clients WHERE user_id = $1`,
       [req.user.id]
     );
     if (clientResult.rows.length === 0) return res.status(404).json({ message: 'Client profile not found' });
@@ -45,6 +45,12 @@ exports.placeBet = async (req, res) => {
     }
     if (!client.is_active) {
       return res.status(403).json({ message: 'Your account is deactivated' });
+    }
+    if (client.self_exclusion_until && new Date(client.self_exclusion_until) > new Date()) {
+      return res.status(403).json({
+        message: `You've self-excluded from betting until ${new Date(client.self_exclusion_until).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+        self_exclusion_until: client.self_exclusion_until,
+      });
     }
 
     const matchResult = await pool.query(`SELECT * FROM matches WHERE id = $1`, [match_id]);
@@ -100,7 +106,82 @@ exports.placeBet = async (req, res) => {
   }
 };
 
-// ── Admin/agent-facing ───────────────────────────────────────────────────
+// ── Responsible gambling ─────────────────────────────────────────────────
+
+const EXCLUSION_DURATIONS = {
+  '24h': 1,
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+  indefinite: 365 * 100, // effectively permanent; an admin can still lift it
+};
+
+// Client sets their own cooling-off / self-exclusion period. Deliberately
+// no client-facing way to shorten or lift it once set — that defeats the
+// point. Only an admin can lift it (see clearSelfExclusion below).
+exports.setSelfExclusion = async (req, res) => {
+  const { duration } = req.body;
+  if (!EXCLUSION_DURATIONS[duration]) {
+    return res.status(400).json({ message: `duration must be one of: ${Object.keys(EXCLUSION_DURATIONS).join(', ')}` });
+  }
+  try {
+    const clientResult = await pool.query(`SELECT id FROM clients WHERE user_id = $1`, [req.user.id]);
+    if (clientResult.rows.length === 0) return res.status(404).json({ message: 'Client profile not found' });
+    const clientId = clientResult.rows[0].id;
+
+    const until = new Date();
+    until.setDate(until.getDate() + EXCLUSION_DURATIONS[duration]);
+
+    await pool.query(`UPDATE clients SET self_exclusion_until = $1 WHERE id = $2`, [until, clientId]);
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, clientId, 'SELF_EXCLUDE', `Self-excluded until ${until.toISOString()} (${duration})`]
+    );
+
+    res.json({ self_exclusion_until: until });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Admin-only override — e.g. following a formal request from the client.
+exports.clearSelfExclusion = async (req, res) => {
+  try {
+    const clientResult = await pool.query(`SELECT id FROM clients WHERE id = $1`, [req.params.clientId]);
+    if (clientResult.rows.length === 0) return res.status(404).json({ message: 'Client not found' });
+
+    await pool.query(`UPDATE clients SET self_exclusion_until = NULL WHERE id = $1`, [req.params.clientId]);
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, client_id, action, details) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.params.clientId, 'SELF_EXCLUDE_CLEARED', `Self-exclusion lifted by admin`]
+    );
+
+    res.json({ message: 'Self-exclusion lifted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ── Admin dashboard stats ───────────────────────────────────────────────
+
+exports.getBettingStats = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+        COUNT(*) FILTER (WHERE placed_at >= CURRENT_DATE) AS bets_today,
+        COALESCE(SUM(amount) FILTER (WHERE placed_at >= CURRENT_DATE), 0) AS wagered_today,
+        COUNT(*) FILTER (WHERE outcome = 'pending') AS pending_bets
+       FROM betting_activity`
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
 // All matches, any status — for the admin sportsbook management page.
 exports.getAllMatches = async (req, res) => {

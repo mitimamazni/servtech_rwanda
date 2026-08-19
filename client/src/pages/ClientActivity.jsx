@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft, BadgeCheck, Clock, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Loader,
   Pencil, Ban, PlayCircle, Check, X, Image as ImageIcon, ShieldAlert,
-  UserPlus, RefreshCw, Mail, MessageSquare, Zap, History, Wallet, Plus,
+  UserPlus, RefreshCw, Mail, MessageSquare, Zap, History, Wallet, Plus, ShieldOff,
 } from 'lucide-react';
 
 const REJECTION_REASONS = [
@@ -69,6 +69,7 @@ export default function ClientActivity() {
   const { clientId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -80,6 +81,7 @@ export default function ClientActivity() {
   const [topupOpen, setTopupOpen] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
   const [toppingUp, setToppingUp] = useState(false);
+  const [clearingExclusion, setClearingExclusion] = useState(false);
   const [documents, setDocuments] = useState(null);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
@@ -192,6 +194,19 @@ export default function ClientActivity() {
       toast.error(err.response?.data?.message || 'Top-up failed');
     } finally {
       setToppingUp(false);
+    }
+  };
+
+  const handleClearExclusion = async () => {
+    setClearingExclusion(true);
+    try {
+      await axios.delete(`/admin/clients/${clientId}/self-exclusion`);
+      toast.success('Self-exclusion lifted');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to lift self-exclusion');
+    } finally {
+      setClearingExclusion(false);
     }
   };
 
@@ -501,6 +516,27 @@ export default function ClientActivity() {
             </button>
           )}
         </div>
+
+        {/* Self-exclusion status (admin-lift only — a client can't undo it themselves) */}
+        {client?.self_exclusion_until && new Date(client.self_exclusion_until) > new Date() && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg p-2.5 bg-red-500"><ShieldOff size={18} className="text-white" /></div>
+              <div>
+                <p className="text-sm font-medium text-red-700">Self-excluded from betting</p>
+                <p className="text-xs text-red-500">
+                  Locked until {new Date(client.self_exclusion_until).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+            {isAdmin && (
+              <button onClick={handleClearExclusion} disabled={clearingExclusion}
+                className="text-xs font-medium text-red-700 border border-red-300 hover:bg-red-100 px-3 py-1.5 rounded-lg disabled:opacity-50">
+                {clearingExclusion ? 'Lifting...' : 'Lift Self-Exclusion'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Betting stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

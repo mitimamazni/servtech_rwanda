@@ -4,6 +4,29 @@
 
 ---
 
+## ⚠️ August 2026 update #2 — read before deploying
+
+Added responsible gambling (self-exclusion) and two new admin dashboard stat
+cards. Run this migration if you've already applied v11/v12:
+
+```bash
+psql "$DATABASE_URL" -f server/config/migration_v13.sql
+```
+
+Adds `clients.self_exclusion_until`. Fresh installs already have it via
+`schema.sql`.
+
+What changed:
+- **Self-exclusion** — on the Sportsbook page, a client can lock themselves
+  out of betting for 24h / 7d / 30d / 90d / indefinitely (the "Take a break"
+  button next to the responsible gambling notice). They can't undo it
+  themselves — only an admin can lift it, from the client's activity page.
+  Enforced server-side in `placeBet`, not just hidden in the UI.
+- **Admin dashboard** — a second stat row: Open Tickets, Tickets In Progress,
+  Bets Today, Wagered Today. Each card links to the relevant page.
+
+---
+
 ## ⚠️ August 2026 update — read before deploying
 
 Added a Phase 1 sportsbook module — clients can now browse matches and place real

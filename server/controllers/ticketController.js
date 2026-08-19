@@ -112,6 +112,29 @@ exports.getAllTickets = async (req, res) => {
   }
 };
 
+// Lightweight counts for the admin dashboard — same agent-scoping as getAllTickets.
+exports.getTicketStats = async (req, res) => {
+  try {
+    let query = `
+      SELECT
+        COUNT(*) FILTER (WHERE t.status = 'open') AS open,
+        COUNT(*) FILTER (WHERE t.status = 'in_progress') AS in_progress,
+        COUNT(*) AS total
+      FROM support_tickets t
+      JOIN clients c ON t.client_id = c.id`;
+    const params = [];
+    if (req.user.role === 'agent') {
+      query += ` WHERE c.registered_by = $1 OR t.assigned_to = $1`;
+      params.push(req.user.id);
+    }
+    const result = await pool.query(query, params);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // ── Shared (ownership/scope checked per role) ───────────────────────────
 
 const canAccessTicket = async (req, ticket) => {

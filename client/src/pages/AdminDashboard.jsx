@@ -26,8 +26,9 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const StatCard = ({ label, value, icon: Icon, color }) => (
-  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+const StatCard = ({ label, value, icon: Icon, color, onClick }) => (
+  <div onClick={onClick}
+    className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 ${onClick ? 'cursor-pointer hover:border-primary-200 transition-colors' : ''}`}>
     <div className={`rounded-xl p-3 ${color}`}><Icon size={22} className="text-white" /></div>
     <div>
       <p className="text-2xl font-semibold text-gray-800">{value ?? 'N/A'}</p>
@@ -39,6 +40,7 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [opsStats, setOpsStats] = useState(null); // sportsbook + tickets summary
   const [clients, setClients] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -54,6 +56,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     axios.get('/stats').then(r => setStats(r.data)).catch(() => toast.error('Failed to load stats'));
+  }, []);
+
+  useEffect(() => {
+    Promise.all([axios.get('/admin/bets/stats'), axios.get('/admin/tickets/stats')])
+      .then(([bets, tickets]) => setOpsStats({ ...bets.data, ...tickets.data }))
+      .catch(() => {}); // non-critical — dashboard still works without this row
   }, []);
 
   useEffect(() => {
@@ -174,6 +182,17 @@ export default function AdminDashboard() {
               <StatCard label="Registered Today" value={stats.today}    icon={CalendarDays} color="bg-indigo-500" />
             </>
           ) : [1,2,3,4,5].map(i => <SkeletonCard key={i} />)}
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {opsStats ? (
+            <>
+              <StatCard label="Open Tickets"      value={opsStats.open}          icon={LifeBuoy2}  color="bg-rose-500"    onClick={() => navigate('/admin/tickets')} />
+              <StatCard label="Tickets In Progress" value={opsStats.in_progress} icon={Clock}      color="bg-amber-500"   onClick={() => navigate('/admin/tickets')} />
+              <StatCard label="Bets Today"        value={opsStats.bets_today}    icon={Trophy2}    color="bg-primary-600" onClick={() => navigate('/admin/sportsbook')} />
+              <StatCard label="Wagered Today (RWF)" value={parseInt(opsStats.wagered_today || 0).toLocaleString()} icon={BarChart2} color="bg-emerald-500" onClick={() => navigate('/admin/sportsbook')} />
+            </>
+          ) : [1,2,3,4].map(i => <SkeletonCard key={i} />)}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">

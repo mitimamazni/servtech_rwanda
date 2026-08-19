@@ -9,6 +9,7 @@ const {
   addMessage,
   updateStatus,
   assignTicket,
+  getTicketStats,
 } = require('../controllers/ticketController');
 
 const clientOnly = (req, res, next) => {
@@ -34,6 +35,7 @@ router.get('/tickets', auth, clientOnly, getMyTickets);
 
 // Admin/agent list (scoped to agent's own clients + assigned tickets server-side)
 router.get('/admin/tickets', auth, adminOrAgent, getAllTickets);
+router.get('/admin/tickets/stats', auth, adminOrAgent, getTicketStats);
 
 // Shared — ownership/scope enforced in the controller
 router.get('/tickets/:id', auth, getTicket);

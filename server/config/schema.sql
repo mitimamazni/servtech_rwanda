@@ -58,6 +58,8 @@ CREATE TABLE clients (
   -- Sportsbook wallet — simulated balance clients stake bets from (topped up
   -- by an agent/admin; no real payment processing).
   wallet_balance DECIMAL(10,2) NOT NULL DEFAULT 10000,
+  -- Responsible gambling: NULL = not excluded; a future timestamp blocks betting until then.
+  self_exclusion_until TIMESTAMP,
   registered_by INTEGER REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW(),
   terms_accepted_at TIMESTAMP,

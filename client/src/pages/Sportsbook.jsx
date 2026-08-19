@@ -3,18 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { Wallet, Trophy, LayoutDashboard, X, AlertTriangle } from 'lucide-react';
+import { Wallet, Trophy, LayoutDashboard, X, AlertTriangle, ShieldOff } from 'lucide-react';
 
 const SPORT_ICON = { football: '⚽', basketball: '🏀', boxing: '🥊' };
+
+const EXCLUSION_OPTIONS = [
+  { value: '24h', label: '24 hours' },
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+  { value: 'indefinite', label: 'Indefinitely' },
+];
 
 export default function Sportsbook() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [balance, setBalance] = useState(null);
+  const [excludedUntil, setExcludedUntil] = useState(null);
   const [loading, setLoading] = useState(true);
   const [slip, setSlip] = useState(null); // { match, selection, odds }
   const [stake, setStake] = useState('');
   const [placing, setPlacing] = useState(false);
+  const [showExclusionModal, setShowExclusionModal] = useState(false);
+  const [excluding, setExcluding] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -25,6 +36,8 @@ export default function Sportsbook() {
       .then(([matchesRes, dashRes]) => {
         setMatches(matchesRes.data);
         setBalance(dashRes.data.client.wallet_balance);
+        const until = dashRes.data.client.self_exclusion_until;
+        setExcludedUntil(until && new Date(until) > new Date() ? until : null);
       })
       .catch(() => toast.error('Failed to load sportsbook'))
       .finally(() => setLoading(false));
@@ -33,7 +46,7 @@ export default function Sportsbook() {
   useEffect(load, []);
 
   const openSlip = (match, selection, odds) => {
-    if (odds === null) return;
+    if (odds === null || excludedUntil) return;
     setSlip({ match, selection, odds });
     setStake('');
   };
@@ -55,6 +68,21 @@ export default function Sportsbook() {
       toast.error(err.response?.data?.message || 'Failed to place bet');
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const confirmSelfExclusion = async (duration) => {
+    setExcluding(true);
+    try {
+      const res = await axios.post('/self-exclusion', { duration });
+      setExcludedUntil(res.data.self_exclusion_until);
+      setSlip(null);
+      setShowExclusionModal(false);
+      toast.success('Self-exclusion set. Take care.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to set self-exclusion');
+    } finally {
+      setExcluding(false);
     }
   };
 
@@ -84,7 +112,16 @@ export default function Sportsbook() {
           </div>
         </div>
 
-        {loading ? (
+        {excludedUntil ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+            <ShieldOff size={24} className="text-red-500 mx-auto mb-2" />
+            <p className="text-sm font-medium text-red-700">You've self-excluded from betting</p>
+            <p className="text-xs text-red-500 mt-1">
+              Betting is locked until {new Date(excludedUntil).toLocaleDateString('en-RW', { day: '2-digit', month: 'short', year: 'numeric' })}.
+              Contact support if you need help before then.
+            </p>
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-24 text-gray-400">
             <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mr-3" />
             Loading matches...
@@ -130,17 +167,25 @@ export default function Sportsbook() {
           </div>
         )}
 
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <AlertTriangle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-700">
-            <strong>Responsible Gambling Notice:</strong> Gambling should be entertaining, not a source of income.
-            Please bet within your means.
-          </p>
+        <div className="flex items-start justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-700">
+              <strong>Responsible Gambling Notice:</strong> Gambling should be entertaining, not a source of income.
+              Please bet within your means.
+            </p>
+          </div>
+          {!excludedUntil && (
+            <button onClick={() => setShowExclusionModal(true)}
+              className="text-xs font-medium text-amber-700 border border-amber-300 hover:bg-amber-100 px-3 py-1.5 rounded-lg whitespace-nowrap">
+              Take a break
+            </button>
+          )}
         </div>
       </div>
 
       {/* Bet slip */}
-      {slip && (
+      {slip && !excludedUntil && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg px-6 py-4 z-20">
           <div className="max-w-4xl mx-auto flex items-end gap-4 flex-wrap">
             <div className="flex-1 min-w-[200px]">
@@ -171,6 +216,30 @@ export default function Sportsbook() {
           </div>
         </div>
       )}
+
+      {/* Self-exclusion modal */}
+      {showExclusionModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-30 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-gray-800 flex items-center gap-2"><ShieldOff size={18} className="text-red-500" /> Take a break</h3>
+              <button onClick={() => setShowExclusionModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              You won't be able to place bets for the period you choose. This can't be undone by yourself once set — you'd need to contact support.
+            </p>
+            <div className="space-y-2">
+              {EXCLUSION_OPTIONS.map(opt => (
+                <button key={opt.value} disabled={excluding} onClick={() => confirmSelfExclusion(opt.value)}
+                  className="w-full text-left text-sm border border-gray-200 hover:border-red-300 hover:bg-red-50 rounded-lg px-4 py-2.5 transition-colors disabled:opacity-50">
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

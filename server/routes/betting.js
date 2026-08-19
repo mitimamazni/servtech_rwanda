@@ -9,6 +9,9 @@ const {
   settleMatch,
   getAllBets,
   topUpWallet,
+  setSelfExclusion,
+  clearSelfExclusion,
+  getBettingStats,
 } = require('../controllers/bettingController');
 
 const clientOnly = (req, res, next) => {
@@ -32,11 +35,16 @@ const adminOrAgent = (req, res, next) => {
 router.get('/matches', auth, clientOnly, getMatches);
 router.post('/bets', auth, clientOnly, placeBet);
 
+// Responsible gambling
+router.post('/self-exclusion', auth, clientOnly, setSelfExclusion);
+router.delete('/admin/clients/:clientId/self-exclusion', auth, adminOnly, clearSelfExclusion);
+
 // Admin — manage matches, settle results, oversee all bets
 router.get('/admin/matches', auth, adminOnly, getAllMatches);
 router.post('/admin/matches', auth, adminOnly, createMatch);
 router.patch('/admin/matches/:id/settle', auth, adminOnly, settleMatch);
 router.get('/admin/bets', auth, adminOnly, getAllBets);
+router.get('/admin/bets/stats', auth, adminOnly, getBettingStats);
 
 // Admin or agent — top up a client's wallet (simulated funds)
 router.post('/clients/:clientId/wallet/topup', auth, adminOrAgent, topUpWallet);
