@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { LifeBuoy, MessageCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { LifeBuoy, MessageCircle, LayoutDashboard } from 'lucide-react';
 
 const STATUS_COLORS = {
   open:        'bg-blue-50 text-blue-700 border-blue-200',
@@ -16,6 +17,7 @@ const PRIORITY_COLORS = { low: 'text-gray-400', normal: 'text-gray-500', high: '
 
 export default function AdminTickets() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -33,7 +35,12 @@ export default function AdminTickets() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
+      <Navbar>
+        <button onClick={() => navigate(user?.role === 'agent' ? '/agent/dashboard' : '/admin/dashboard')}
+          className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <LayoutDashboard size={14} /> Dashboard
+        </button>
+      </Navbar>
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
         <div className="flex items-center gap-2">
           <LifeBuoy size={20} className="text-primary-600" />

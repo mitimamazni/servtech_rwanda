@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
 import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
-import { Trophy, Plus, X, CheckCircle2 } from 'lucide-react';
+import { Trophy, Plus, X, CheckCircle2, LayoutDashboard } from 'lucide-react';
 
 const STATUS_COLORS = {
   upcoming: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -18,6 +19,7 @@ const OUTCOME_COLORS = {
 };
 
 export default function AdminSportsbook() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('matches');
   const [matches, setMatches] = useState([]);
   const [bets, setBets] = useState([]);
@@ -70,6 +72,10 @@ export default function AdminSportsbook() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar>
+        <button onClick={() => navigate('/admin/dashboard')}
+          className="text-sm text-gray-600 hover:text-gray-800 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+          <LayoutDashboard size={14} /> Dashboard
+        </button>
         <button onClick={() => setShowForm(true)}
           className="text-sm text-white bg-primary-600 hover:bg-primary-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
           <Plus size={14} /> New Match
